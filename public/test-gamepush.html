@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GamePush Test</title>
+</head>
+<body>
+    <h1>GamePush Test</h1>
+    <div id="status">Loading...</div>
+    <button id="testBtn" disabled>Test GamePush</button>
+    <div id="results"></div>
+
+    <!-- GamePush SDK -->
+    <script async src="https://gamepush.com/sdk/gamepush.js?projectId=24834&publicToken=ci5ET6SIXsl2ahQfp03ZxrdhlZ75eIwN&callback=onGPInit"></script>
+    <script>
+        window.onGPInit = function (gp) {
+            window.gp = gp;
+            window.GP = gp; // Для обратной совместимости
+            console.log('GamePush initialized');
+            
+            // Уведомляем о готовности GamePush
+            window.dispatchEvent(new CustomEvent('gamepushReady'));
+        }
+
+        // Тестирование GamePush
+        async function testGamePush() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            try {
+                statusDiv.textContent = 'Testing GamePush...';
+                
+                // Проверяем доступность
+                if (!window.gp) {
+                    throw new Error('GamePush not available');
+                }
+                
+                // Тестируем синхронизацию
+                console.log('Syncing with GamePush...');
+                await window.gp.player.sync();
+                console.log('Sync completed');
+                
+                // Тестируем получение данных
+                const currentScore = window.gp.player.get('best_score');
+                console.log('Current best_score:', currentScore);
+                
+                // Тестируем сохранение данных
+                const testScore = Math.floor(Math.random() * 1000);
+                console.log('Setting test score:', testScore);
+                window.gp.player.set('best_score', testScore);
+                
+                // Синхронизируем изменения
+                await window.gp.player.sync();
+                console.log('Test score saved');
+                
+                // Проверяем сохранение
+                const savedScore = window.gp.player.get('best_score');
+                console.log('Saved score:', savedScore);
+                
+                statusDiv.textContent = 'GamePush Test Completed Successfully!';
+                resultsDiv.innerHTML = `
+                    <p>Current score: ${currentScore}</p>
+                    <p>Test score set: ${testScore}</p>
+                    <p>Saved score: ${savedScore}</p>
+                    <p>Test ${savedScore === testScore ? 'PASSED' : 'FAILED'}</p>
+                `;
+                
+            } catch (error) {
+                console.error('GamePush test failed:', error);
+                statusDiv.textContent = 'GamePush Test Failed: ' + error.message;
+                resultsDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+
+        // Инициализация
+        window.addEventListener('gamepushReady', () => {
+            document.getElementById('status').textContent = 'GamePush Ready!';
+            document.getElementById('testBtn').disabled = false;
+        });
+
+        document.getElementById('testBtn').addEventListener('click', testGamePush);
+    </script>
+</body>
+</html>

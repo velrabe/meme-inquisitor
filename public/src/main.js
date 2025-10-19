@@ -1,0 +1,271 @@
+// Главный файл игры
+import { CONFIG } from './config.js';
+import { initRenderer, clear, drawPlayer, drawEnemy, drawBullet, drawSafeZone, drawPickup, drawActiveUpgrades, getSize, getContext } from './renderer.js';
+import { initInput, getInput, resetInput } from './input.js';
+import { getState, setState, isPlaying, isLose, GameState } from './state.js';
+import { world } from './world.js';
+import { Player } from './player.js';
+import { BulletPool } from './bulletPool.js';
+import { EnemyPool } from './enemyPool.js';
+import { Spawner } from './spawner.js';
+import { CollisionSystem } from './collisions.js';
+import { UI } from './ui.js';
+import { initStorage, loadBestScore, saveLocalBestScore, saveBestScore, syncWithGamePush, resetGamePush } from './storage.js';
+import { UpgradeManager } from './upgrades/upgradeManager.js';
+import { PickupPool } from './upgrades/pickupPool.js';
+
+// Игровые системы
+let player;
+let bulletPool;
+let enemyPool;
+let spawner;
+let collisionSystem;
+let ui;
+let upgradeManager;
+let pickupPool;
+let pickupSpawnTimer = 0;
+let recordBeatenThisSession = false; // Флаг: был ли побит рекорд в этой сессии
+
+let lastTime = 0;
+
+async function init() {
+    console.log('Initializing game...');
+    
+    // Инициализация систем
+    initRenderer();
+    initInput();
+    
+    // UI
+    ui = new UI();
+    ui.onRestart(restart);
+    
+    
+    // Кнопка сброса GamePush
+    const resetGPBtn = document.getElementById('resetGPBtn');
+    if (resetGPBtn) {
+        resetGPBtn.addEventListener('click', async () => {
+            console.log('Resetting GamePush...');
+            const result = await resetGamePush();
+            if (result) {
+                alert('Сброс выполнен! Перезагрузите страницу для проверки.');
+                // Обновляем UI
+                world.bestScore = 0;
+                ui.updateBestScore(0);
+            } else {
+                alert('Ошибка при сбросе!');
+            }
+        });
+    }
+    
+    // Инициализация GamePush и загрузка лучшего счета
+    await initStorage();
+    world.bestScore = await loadBestScore();
+    ui.updateBestScore(world.bestScore);
+    
+    // Создание пулов
+    bulletPool = new BulletPool();
+    enemyPool = new EnemyPool();
+    pickupPool = new PickupPool();
+    world.bullets = bulletPool;
+    world.enemies = enemyPool;
+    world.pickups = pickupPool;
+    
+    // Создание менеджера улучшений
+    upgradeManager = new UpgradeManager(world);
+    world.upgradeManager = upgradeManager;
+    
+    // Создание игровых объектов
+    player = new Player(bulletPool, upgradeManager);
+    world.player = player;
+    
+    spawner = new Spawner(enemyPool);
+    collisionSystem = new CollisionSystem(world);
+    
+    // Старт игры
+    setState(GameState.PLAYING);
+    
+    // Сохранение ЛОКАЛЬНО при закрытии вкладки или перезагрузке
+    window.addEventListener('beforeunload', () => {
+        if (world.score > 0) {
+            // Сохраняем текущий счет ЛОКАЛЬНО, если он больше 0
+            saveLocalBestScore(world.score);
+        }
+    });
+    
+    // Сохранение ЛОКАЛЬНО при потере фокуса (переключение вкладок)
+    window.addEventListener('blur', () => {
+        if (world.score > 0) {
+            // Сохраняем текущий счет ЛОКАЛЬНО, если он больше 0
+            saveLocalBestScore(world.score);
+        }
+    });
+    
+    console.log('Game initialized, starting loop...');
+    requestAnimationFrame(gameLoop);
+}
+
+function gameLoop(time) {
+    const dt = lastTime ? Math.min((time - lastTime) / 1000, 0.1) : 0;
+    lastTime = time;
+    
+    if (isPlaying()) {
+        update(dt);
+    }
+    
+    render();
+    
+    requestAnimationFrame(gameLoop);
+}
+
+function update(dt) {
+    // 1. Обработка ввода
+    const input = getInput();
+    
+    // 2. Обновление игрока
+    player.update(dt, input);
+    
+    // 3. Обновление менеджера улучшений
+    upgradeManager.update(dt);
+    
+    // 4. Спавн врагов
+    spawner.update(dt);
+    
+    // 5. Спавн бонусов
+    pickupSpawnTimer += dt;
+    if (pickupSpawnTimer >= CONFIG.PICKUP_SPAWN_INTERVAL) {
+        pickupPool.spawnRandom();
+        pickupSpawnTimer = 0;
+    }
+    
+    // 6. Обновление пуль, врагов и бонусов
+    bulletPool.update(dt);
+    enemyPool.update(dt);
+    pickupPool.update(dt);
+    
+    // 7. Проверка столкновений
+    collisionSystem.update();
+    
+    // 8. Обновление UI
+    ui.updateScore(world.score);
+    
+    // Проверка нового рекорда и сохранение ЛОКАЛЬНО
+    if (world.score > world.bestScore) {
+        world.bestScore = world.score;
+        ui.updateBestScore(world.bestScore);
+        // Сохраняем новый рекорд ТОЛЬКО локально
+        saveLocalBestScore(world.bestScore);
+        // Устанавливаем флаг что рекорд побит в этой сессии
+        recordBeatenThisSession = true;
+    }
+    
+    // 9. Проверка проигрыша
+    if (isLose()) {
+        handleGameOver();
+    }
+}
+
+function render() {
+    clear();
+    
+    const { w, h } = getSize();
+    const ctx = getContext();
+    
+    // Отрисовка safe zone
+    drawSafeZone(CONFIG.SAFE_ZONE_HEIGHT, CONFIG.SAFE_ZONE_COLOR);
+    
+    // Отрисовка врагов (сортировка по глубине, Y-координате и ID)
+    const enemies = enemyPool.getActive().sort((a, b) => {
+        // Сначала по глубине (новые волны под старыми)
+        if (a.depth !== b.depth) {
+            return a.depth - b.depth;
+        }
+        // Затем по Y-координате (нижние враги под верхними)
+        if (Math.abs(a.y - b.y) > 1) { // только если разница в Y значительная
+            return a.y - b.y;
+        }
+        // Наконец по ID для стабильной сортировки
+        return a.id - b.id;
+    });
+    for (const enemy of enemies) {
+        drawEnemy(enemy);
+    }
+    
+    // Отрисовка бонусов
+    const pickups = pickupPool.getActive();
+    for (const pickup of pickups) {
+        drawPickup(pickup);
+    }
+    
+    // Отрисовка пуль
+    const bullets = bulletPool.getActive();
+    for (const bullet of bullets) {
+        drawBullet(bullet.x, bullet.y, bullet.radius, bullet.color);
+    }
+    
+    // Отрисовка игрока
+    drawPlayer(player.x, player.y, player.radius);
+    
+    // Отрисовка weapon override (например, лазер)
+    upgradeManager.drawWeaponOverride(ctx);
+    
+    // Отрисовка визуальных эффектов (взрывы и т.п.)
+    upgradeManager.drawEffects(ctx);
+    
+    // Отрисовка активных улучшений
+    drawActiveUpgrades(upgradeManager);
+}
+
+async function handleGameOver() {
+    console.log('Game Over! Score:', world.score);
+    
+    // Сохраняем в GamePush ТОЛЬКО если рекорд был побит в этой сессии
+    if (recordBeatenThisSession) {
+        await saveBestScore(world.bestScore);
+        console.log('New record saved to GamePush:', world.bestScore);
+    }
+    
+    // Показ экрана проигрыша
+    ui.showLoseScreen(world.score, world.bestScore);
+}
+
+function restart() {
+    console.log('Restarting game...');
+    
+    // Сброс состояния
+    setState(GameState.PLAYING);
+    
+    // Сброс UI
+    ui.hideLoseScreen();
+    
+    // Сброс world
+    world.reset();
+    
+    // Сброс игровых объектов
+    player.reset();
+    bulletPool.reset();
+    enemyPool.reset();
+    pickupPool.reset();
+    spawner.reset();
+    upgradeManager.reset();
+    
+    // Сброс таймера спавна бонусов и флага рекорда
+    pickupSpawnTimer = 0;
+    recordBeatenThisSession = false;
+    
+    // Сброс ввода
+    resetInput();
+    
+    // Обновление UI
+    ui.updateScore(0);
+    
+    // Сброс времени
+    lastTime = 0;
+}
+
+// Запуск игры после загрузки страницы
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+

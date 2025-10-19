@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Meme Inquisitor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Canvas для игры -->
+    <canvas id="gameCanvas"></canvas>
+    
+    <!-- UI элементы -->
+    <div id="ui">
+        <div id="score">Score: <span id="scoreValue">0</span></div>
+        <div id="bestScore">Best: <span id="bestValue">0</span></div>
+    </div>
+
+    <!-- Кнопка сброса GamePush -->
+    <div id="debugButtons">
+        <button id="resetGPBtn">Сброс</button>
+    </div>
+
+    <!-- Мобильные стрелки управления -->
+    <div id="mobileControls">
+        <button id="leftArrow" class="control-arrow left">◀</button>
+        <button id="rightArrow" class="control-arrow right">▶</button>
+    </div>
+
+    <!-- Экран проигрыша -->
+    <div id="loseScreen" class="screen hidden">
+        <h1>Game Over</h1>
+        <p>Score: <span id="finalScore">0</span></p>
+        <p>Best: <span id="finalBest">0</span></p>
+        <button id="restartBtn">Restart</button>
+    </div>
+
+    <!-- GamePush SDK -->
+    <script async src="https://gamepush.com/sdk/gamepush.js?projectId=24834&publicToken=ci5ET6SIXsl2ahQfp03ZxrdhlZ75eIwN&callback=onGPInit"></script>
+    <script>
+        window.onGPInit = async function (gp) {
+            window.gp = gp;
+            window.GP = gp; // Для обратной совместимости
+            console.log('GamePush initialized');
+            
+            // КРИТИЧЕСКИ ВАЖНО: ждем готовности player
+            try {
+                await gp.player.ready;
+                console.log('GamePush player ready');
+            } catch (err) {
+                console.error('GamePush player ready failed:', err);
+            }
+            
+            // Уведомляем о готовности GamePush
+            window.dispatchEvent(new CustomEvent('gamepushReady'));
+        }
+    </script>
+
+    <!-- Игровые модули -->
+    <script type="module" src="src/main.js?v=2"></script>
+</body>
+</html>
+
