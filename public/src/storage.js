@@ -68,10 +68,7 @@ export async function loadBestScore() {
             // КРИТИЧЕСКИ ВАЖНО: ждем готовности player
             await window.gp.player.ready;
             
-            // Синхронизируем с GamePush при запуске
-            await window.gp.player.sync();
-            
-            // Загружаем best_score из GamePush
+            // Загружаем best_score из GamePush (без лишнего sync)
             const cloudBestScore = window.gp.player.get('best_score');
             
             if (cloudBestScore !== null && cloudBestScore !== undefined) {
@@ -119,9 +116,6 @@ export async function saveBestScore(score) {
             window.gp.player.set('best_score', score);
             
             // Синхронизируем с облаком
-            await window.gp.player.sync();
-            
-            // Дополнительная проверка - принудительно синхронизируем еще раз
             await window.gp.player.sync();
         } catch (err) {
             console.error('Failed to sync to GamePush:', err);

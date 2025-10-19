@@ -25,6 +25,7 @@ let upgradeManager;
 let pickupPool;
 let pickupSpawnTimer = 0;
 let recordBeatenThisSession = false; // Флаг: был ли побит рекорд в этой сессии
+let gameOverHandled = false; // Флаг: был ли уже обработан game over
 
 let lastTime = 0;
 
@@ -86,17 +87,17 @@ async function init() {
     
     // Сохранение ЛОКАЛЬНО при закрытии вкладки или перезагрузке
     window.addEventListener('beforeunload', () => {
-        if (world.score > 0) {
-            // Сохраняем текущий счет ЛОКАЛЬНО, если он больше 0
-            saveLocalBestScore(world.score);
+        // Сохраняем лучший счет (на случай если рекорд побит, но игрок не проиграл)
+        if (recordBeatenThisSession) {
+            saveLocalBestScore(world.bestScore);
         }
     });
     
     // Сохранение ЛОКАЛЬНО при потере фокуса (переключение вкладок)
     window.addEventListener('blur', () => {
-        if (world.score > 0) {
-            // Сохраняем текущий счет ЛОКАЛЬНО, если он больше 0
-            saveLocalBestScore(world.score);
+        // Сохраняем лучший счет (на случай если рекорд побит, но игрок не проиграл)
+        if (recordBeatenThisSession) {
+            saveLocalBestScore(world.bestScore);
         }
     });
     
@@ -159,7 +160,7 @@ function update(dt) {
     }
     
     // 9. Проверка проигрыша
-    if (isLose()) {
+    if (isLose() && !gameOverHandled) {
         handleGameOver();
     }
 }
@@ -215,17 +216,27 @@ function render() {
     drawActiveUpgrades(upgradeManager);
 }
 
-async function handleGameOver() {
+function handleGameOver() {
+    // Защита от повторных вызовов
+    if (gameOverHandled) return;
+    gameOverHandled = true;
+    
     console.log('Game Over! Score:', world.score);
     
-    // Сохраняем в GamePush ТОЛЬКО если рекорд был побит в этой сессии
-    if (recordBeatenThisSession) {
-        await saveBestScore(world.bestScore);
-        console.log('New record saved to GamePush:', world.bestScore);
-    }
-    
-    // Показ экрана проигрыша
+    // СРАЗУ показываем экран проигрыша (UX-дружелюбно)
     ui.showLoseScreen(world.score, world.bestScore);
+    
+    // Сохраняем в GamePush "за кулисами" если рекорд был побит
+    if (recordBeatenThisSession) {
+        // Асинхронно сохраняем без блокировки UI
+        saveBestScore(world.bestScore).then(() => {
+            console.log('New record saved to GamePush:', world.bestScore);
+        }).catch(err => {
+            console.error('Failed to save record to GamePush:', err);
+        });
+        // Сбрасываем флаг
+        recordBeatenThisSession = false;
+    }
 }
 
 function restart() {
@@ -248,9 +259,10 @@ function restart() {
     spawner.reset();
     upgradeManager.reset();
     
-    // Сброс таймера спавна бонусов и флага рекорда
+    // Сброс таймера спавна бонусов и флагов
     pickupSpawnTimer = 0;
     recordBeatenThisSession = false;
+    gameOverHandled = false;
     
     // Сброс ввода
     resetInput();
