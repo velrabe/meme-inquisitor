@@ -16,6 +16,11 @@
         <div id="bestScore">Best: <span id="bestValue">0</span></div>
     </div>
 
+    <!-- Кнопка паузы (внутри игровой области) -->
+    <div id="gameUI">
+        <button id="pauseBtn" class="pause-button">⏸</button>
+    </div>
+
     <!-- Кнопка сброса GamePush -->
     <div id="debugButtons">
         <button id="resetGPBtn">Сброс</button>
@@ -33,6 +38,17 @@
         <p>Score: <span id="finalScore">0</span></p>
         <p>Best: <span id="finalBest">0</span></p>
         <button id="restartBtn">Restart</button>
+    </div>
+
+    <!-- Модальное окно паузы -->
+    <div id="pauseModal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Пауза</h2>
+            <div class="modal-buttons">
+                <button id="resumeBtn" class="modal-btn resume">Продолжить</button>
+                <button id="restartFromPauseBtn" class="modal-btn restart">Начать сначала</button>
+            </div>
+        </div>
     </div>
 
     <!-- GamePush SDK -->

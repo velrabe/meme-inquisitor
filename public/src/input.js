@@ -1,4 +1,6 @@
 // Модуль управления
+import { CONFIG } from './config.js';
+
 let leftPressed = false;
 let rightPressed = false;
 let dragging = false;
@@ -115,9 +117,17 @@ function getEventPosition(e) {
         clientY = e.clientY;
     }
     
+    // Получаем координаты относительно канваса на экране
+    const canvasX = clientX - rect.left;
+    const canvasY = clientY - rect.top;
+    
+    // Преобразуем экранные координаты в игровые координаты
+    const scaleX = CONFIG.ARENA_WIDTH / rect.width;
+    const scaleY = CONFIG.ARENA_HEIGHT / rect.height;
+    
     return {
-        x: clientX - rect.left,
-        y: clientY - rect.top
+        x: canvasX * scaleX,
+        y: canvasY * scaleY
     };
 }
 

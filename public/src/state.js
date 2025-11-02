@@ -1,6 +1,7 @@
 // Управление состояниями игры
 const GameState = {
     PLAYING: 'playing',
+    PAUSED: 'paused',
     LOSE: 'lose'
 };
 
@@ -16,6 +17,10 @@ export function setState(newState) {
 
 export function isPlaying() {
     return currentState === GameState.PLAYING;
+}
+
+export function isPaused() {
+    return currentState === GameState.PAUSED;
 }
 
 export function isLose() {

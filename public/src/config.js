@@ -1,8 +1,8 @@
 // Константы игры
 export const CONFIG = {
-    // Размеры арены
-    ARENA_WIDTH: 800,
-    ARENA_HEIGHT: 600,
+    // Размеры арены (9:16 портретный режим)
+    ARENA_WIDTH: 540,
+    ARENA_HEIGHT: 960,
     
     // Игрок
     PLAYER_SPEED: 400, // пикселей в секунду
@@ -17,7 +17,7 @@ export const CONFIG = {
     BULLET_POOL_SIZE: 50,
     
     // Враги
-    ENEMY_SPEED: 100, // начальная скорость
+    ENEMY_SPEED: 65, // начальная скорость (медленнее)
     ENEMY_SIZE: 100, // увеличен в 2 раза
     ENEMY_RADIUS: 50, // увеличен в 2 раза
     ENEMY_POOL_SIZE: 50,
@@ -28,10 +28,15 @@ export const CONFIG = {
     ENEMY_ANIMATION_FRAMES: 2, // количество кадров анимации
     
     // Спавн врагов
-    SPAWN_DELAY: 800, // начальный интервал спавна в мс
-    SPAWN_MIN_DELAY: 200, // минимальный интервал
-    SPAWN_ACCELERATION: 0.98, // коэффициент ускорения волны
-    SPAWN_COLUMNS: 6, // количество колонок для спавна
+    SPAWN_DELAY: 650, // чаще спавним
+    SPAWN_MIN_DELAY: 250, // но есть нижний предел
+    SPAWN_ACCELERATION: 0.985, // чуть медленнее ускоряемся
+    SPAWN_COLUMNS: 7, // больше колонок для плотной сетки
+    SPAWN_MIN_COLUMN_GAP: 14, // минимальный зазор между соседями при спавне (px)
+    SPAWN_MIN_TIME_GAP: 60, // минимальный интервал между двумя спавнами в ту же колонку (мс)
+    SPAWN_WAVE_ROWS: 2, // сколько рядов за волну
+    SPAWN_ROW_VERTICAL_GAP: 48, // минимальный вертикальный зазор между рядами (px)
+    SPAWN_ROW_JITTER_X: 6, // небольшой случайный сдвиг по X, чтобы не было идеальных колонок
     
     // Safe Zone
     SAFE_ZONE_HEIGHT: 80, // высота зоны в пикселях

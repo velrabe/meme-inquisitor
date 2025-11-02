@@ -3,6 +3,8 @@ import { CONFIG } from './config.js';
 
 let canvas, ctx, w, h;
 let playerImage, enemyImage;
+let bgTileImage, overlayImage;
+let chainImage;
 let imagesLoaded = false;
 
 export function initRenderer() {
@@ -12,17 +14,35 @@ export function initRenderer() {
     // Загружаем изображения
     playerImage = new Image();
     enemyImage = new Image();
+    bgTileImage = new Image();
+    overlayImage = new Image();
+    chainImage = new Image();
     
     const loadPromises = [
         new Promise((resolve, reject) => {
             playerImage.onload = resolve;
             playerImage.onerror = reject;
-            playerImage.src = './img/pope.png';
+            playerImage.src = './img/player/pope.png';
         }),
         new Promise((resolve, reject) => {
             enemyImage.onload = resolve;
             enemyImage.onerror = reject;
             enemyImage.src = './img/sahur.png';
+        }),
+        new Promise((resolve, reject) => {
+            bgTileImage.onload = resolve;
+            bgTileImage.onerror = reject;
+            bgTileImage.src = './img/decorations/bg-tile.png';
+        }),
+        new Promise((resolve, reject) => {
+            overlayImage.onload = resolve;
+            overlayImage.onerror = reject;
+            overlayImage.src = './img/decorations/overlay.png';
+        }),
+        new Promise((resolve, reject) => {
+            chainImage.onload = resolve;
+            chainImage.onerror = reject;
+            chainImage.src = './img/player/chain.png';
         })
     ];
     
@@ -40,15 +60,47 @@ export function initRenderer() {
 function resize() {
     const dpr = window.devicePixelRatio || 1;
     
-    // Размеры canvas по размеру окна
-    const rect = canvas.getBoundingClientRect();
-    w = rect.width;
-    h = rect.height;
+    // Соотношение сторон 9:16 (портретный режим)
+    const targetAspect = 9 / 16;
     
-    // Устанавливаем размер с учетом DPR
+    // Получаем размеры экрана
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    const screenAspect = screenWidth / screenHeight;
+    
+    // Рассчитываем размер канваса, чтобы поместился на экран и сохранил пропорции
+    let displayWidth, displayHeight;
+    
+    if (screenAspect > targetAspect) {
+        // Экран шире, чем нужно - ограничиваем по высоте
+        displayHeight = screenHeight;
+        displayWidth = displayHeight * targetAspect;
+    } else {
+        // Экран уже, чем нужно - ограничиваем по ширине
+        displayWidth = screenWidth;
+        displayHeight = displayWidth / targetAspect;
+    }
+    
+    // Устанавливаем размер канваса через CSS
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
+    
+    // Синхронизируем размеры контейнера gameUI с канвасом
+    const gameUI = document.getElementById('gameUI');
+    if (gameUI) {
+        gameUI.style.width = `${displayWidth}px`;
+        gameUI.style.height = `${displayHeight}px`;
+    }
+    
+    // Размеры для рендеринга (соответствуют игровой арене)
+    w = CONFIG.ARENA_WIDTH;
+    h = CONFIG.ARENA_HEIGHT;
+    
+    // Устанавливаем внутренний размер канваса с учетом DPR для четкости
     canvas.width = w * dpr;
     canvas.height = h * dpr;
     
+    // Масштабируем контекст для DPR
     ctx.scale(dpr, dpr);
 }
 
@@ -64,7 +116,62 @@ export function clear() {
     ctx.clearRect(0, 0, w, h);
 }
 
-export function drawPlayer(x, y, radius) {
+export function drawBackground() {
+    if (imagesLoaded && bgTileImage && bgTileImage.width > 0) {
+        // Рисуем тайловый фон
+        const tileWidth = bgTileImage.width;
+        const tileHeight = bgTileImage.height;
+        
+        // Рассчитываем количество тайлов по горизонтали и вертикали
+        const tilesX = Math.ceil(w / tileWidth) + 1;
+        const tilesY = Math.ceil(h / tileHeight) + 1;
+        
+        for (let y = 0; y < tilesY; y++) {
+            for (let x = 0; x < tilesX; x++) {
+                ctx.drawImage(bgTileImage, x * tileWidth, y * tileHeight);
+            }
+        }
+    } else {
+        // Fallback - синий градиент если изображение не загружено
+        const gradient = ctx.createLinearGradient(0, 0, 0, h);
+        gradient.addColorStop(0, '#1a1a2e');
+        gradient.addColorStop(0.5, '#16213e');
+        gradient.addColorStop(1, '#0f3460');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, w, h);
+    }
+}
+
+export function drawOverlay() {
+    if (imagesLoaded && overlayImage && overlayImage.width > 0) {
+        // Растягиваем оверлей на весь канвас
+        ctx.drawImage(overlayImage, 0, 0, w, h);
+    }
+}
+
+export function drawPlayer(x, y, radius, shootFlash = 0) {
+    // Рисуем свечение при выстреле
+    if (shootFlash > 0) {
+        const intensity = shootFlash / 100; // 0 до 1
+        const glowRadius = radius * 0.8; // Уменьшили размер свечения
+        
+        // Позиция свечения - смещаем вверх к пушке
+        const glowX = x;
+        const glowY = y - radius * 0.7; // Смещаем вверх к дулу пушки
+        
+        // Создаем радиальный градиент для свечения (20% непрозрачности)
+        const gradient = ctx.createRadialGradient(glowX, glowY, radius * 0.2, glowX, glowY, glowRadius);
+        gradient.addColorStop(0, `rgba(255, 200, 50, ${0.2 * intensity})`);
+        gradient.addColorStop(0.5, `rgba(255, 150, 0, ${0.1 * intensity})`);
+        gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(glowX, glowY, glowRadius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // Рисуем игрока
     if (imagesLoaded && playerImage) {
         const size = radius * 2;
         ctx.drawImage(playerImage, x - radius, y - radius, size, size);
@@ -74,6 +181,50 @@ export function drawPlayer(x, y, radius) {
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fill();
+    }
+}
+
+export function drawChain(x, y, radius, chainAngle) {
+    if (imagesLoaded && chainImage && chainImage.width > 0) {
+        ctx.save();
+        
+        // Anchor point цепи (верхняя часть, около шеи персонажа)
+        const anchorX = x;
+        const anchorY = y - radius * -0.1; // Смещение вниз (уменьшите коэффициент для опускания ниже)
+        
+        // Перемещаем контекст к anchor point
+        ctx.translate(anchorX, anchorY);
+        
+        // Поворачиваем на угол (в радианах)
+        ctx.rotate(chainAngle * Math.PI / 180);
+        
+        // Размер цепи - квадратная иконка с сохранением пропорций
+        const chainSize = radius * 0.8; // Размер квадрата
+        
+        // Вычисляем aspect ratio оригинального изображения
+        const aspectRatio = chainImage.width / chainImage.height;
+        
+        let drawWidth, drawHeight;
+        if (aspectRatio >= 1) {
+            // Изображение шире или квадратное
+            drawWidth = chainSize;
+            drawHeight = chainSize / aspectRatio;
+        } else {
+            // Изображение выше
+            drawWidth = chainSize * aspectRatio;
+            drawHeight = chainSize;
+        }
+        
+        // Рисуем цепь как квадрат, центрированный по X
+        ctx.drawImage(
+            chainImage,
+            -drawWidth / 2, // X - центрируем
+            0, // Y - начинается от anchor point
+            drawWidth,
+            drawHeight
+        );
+        
+        ctx.restore();
     }
 }
 
@@ -111,16 +262,45 @@ export function drawEnemy(enemy) {
 }
 
 export function drawBullet(x, y, radius, color) {
-    ctx.fillStyle = color;
+    // Размеры градиентной полоски
+    const bulletWidth = radius * 1.5;
+    const bulletHeight = radius * 6;
+    
+    // Создаем вертикальный градиент (сверху вниз)
+    const gradient = ctx.createLinearGradient(x, y - bulletHeight / 2, x, y + bulletHeight / 2);
+    gradient.addColorStop(0, 'rgba(80, 60, 20, 0.3)'); // Темный сверху
+    gradient.addColorStop(0.3, 'rgba(150, 120, 60, 0.7)'); // Средний
+    gradient.addColorStop(0.7, 'rgba(255, 200, 80, 0.95)'); // Золотой
+    gradient.addColorStop(1, 'rgba(255, 230, 150, 1)'); // Яркий золотой снизу
+    
+    ctx.save();
+    
+    // Рисуем полоску с закругленным концом
+    ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    
+    // Верхняя часть (прямоугольник)
+    const topY = y - bulletHeight / 2;
+    const bottomY = y + bulletHeight / 2;
+    
+    ctx.moveTo(x - bulletWidth / 2, topY);
+    ctx.lineTo(x + bulletWidth / 2, topY);
+    ctx.lineTo(x + bulletWidth / 2, bottomY - bulletWidth / 2);
+    
+    // Закругленный низ
+    ctx.arc(x, bottomY - bulletWidth / 2, bulletWidth / 2, 0, Math.PI, false);
+    
+    ctx.lineTo(x - bulletWidth / 2, topY);
+    ctx.closePath();
     ctx.fill();
     
-    // Свечение пули
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = color;
+    // Легкое свечение
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = 'rgba(255, 200, 80, 0.6)';
     ctx.fill();
     ctx.shadowBlur = 0;
+    
+    ctx.restore();
 }
 
 export function drawSafeZone(height, color) {
