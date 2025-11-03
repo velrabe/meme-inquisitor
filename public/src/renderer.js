@@ -7,6 +7,16 @@ let bgTileImage, overlayImage;
 let chainImage;
 let imagesLoaded = false;
 
+// Кэш для оптимизации производительности
+let bgCanvas, bgCtx;
+let overlayCanvas, overlayCtx;
+let backgroundCached = false;
+let overlayCached = false;
+
+// Кэш градиентов
+let bulletGradientCache = null;
+let shootFlashGradientCache = null;
+
 export function initRenderer() {
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d');
@@ -49,9 +59,18 @@ export function initRenderer() {
     Promise.all(loadPromises).then(() => {
         imagesLoaded = true;
         console.log('Images loaded');
+        // Кэшируем фон и оверлей после загрузки изображений
+        cacheBackground();
+        cacheOverlay();
     }).catch(err => {
         console.error('Failed to load images:', err);
     });
+    
+    // Создаем офскрин-канвасы для кэширования
+    bgCanvas = document.createElement('canvas');
+    bgCtx = bgCanvas.getContext('2d');
+    overlayCanvas = document.createElement('canvas');
+    overlayCtx = overlayCanvas.getContext('2d');
     
     resize();
     window.addEventListener('resize', resize);
@@ -102,6 +121,24 @@ function resize() {
     
     // Масштабируем контекст для DPR
     ctx.scale(dpr, dpr);
+    
+    // Обновляем размеры кэш-канвасов
+    if (bgCanvas) {
+        bgCanvas.width = w;
+        bgCanvas.height = h;
+        backgroundCached = false; // Нужно перерисовать
+        if (imagesLoaded) cacheBackground();
+    }
+    if (overlayCanvas) {
+        overlayCanvas.width = w;
+        overlayCanvas.height = h;
+        overlayCached = false; // Нужно перерисовать
+        if (imagesLoaded) cacheOverlay();
+    }
+    
+    // Сбрасываем кэш градиентов при изменении размера
+    bulletGradientCache = null;
+    shootFlashGradientCache = null;
 }
 
 export function getContext() {
@@ -116,9 +153,12 @@ export function clear() {
     ctx.clearRect(0, 0, w, h);
 }
 
-export function drawBackground() {
+// Функция для кэширования фона (вызывается один раз)
+function cacheBackground() {
+    if (!bgCanvas || !bgCtx || backgroundCached) return;
+    
     if (imagesLoaded && bgTileImage && bgTileImage.width > 0) {
-        // Рисуем тайловый фон
+        // Рисуем тайловый фон в кэш-канвас
         const tileWidth = bgTileImage.width;
         const tileHeight = bgTileImage.height;
         
@@ -128,11 +168,41 @@ export function drawBackground() {
         
         for (let y = 0; y < tilesY; y++) {
             for (let x = 0; x < tilesX; x++) {
-                ctx.drawImage(bgTileImage, x * tileWidth, y * tileHeight);
+                bgCtx.drawImage(bgTileImage, x * tileWidth, y * tileHeight);
             }
         }
+        backgroundCached = true;
+        console.log('Background cached');
     } else {
         // Fallback - синий градиент если изображение не загружено
+        const gradient = bgCtx.createLinearGradient(0, 0, 0, h);
+        gradient.addColorStop(0, '#1a1a2e');
+        gradient.addColorStop(0.5, '#16213e');
+        gradient.addColorStop(1, '#0f3460');
+        bgCtx.fillStyle = gradient;
+        bgCtx.fillRect(0, 0, w, h);
+        backgroundCached = true;
+    }
+}
+
+// Функция для кэширования оверлея (вызывается один раз)
+function cacheOverlay() {
+    if (!overlayCanvas || !overlayCtx || overlayCached) return;
+    
+    if (imagesLoaded && overlayImage && overlayImage.width > 0) {
+        // Рисуем оверлей в кэш-канвас
+        overlayCtx.drawImage(overlayImage, 0, 0, w, h);
+        overlayCached = true;
+        console.log('Overlay cached');
+    }
+}
+
+export function drawBackground() {
+    // Просто копируем кэшированный фон
+    if (backgroundCached && bgCanvas) {
+        ctx.drawImage(bgCanvas, 0, 0);
+    } else if (!imagesLoaded) {
+        // Fallback только если изображения еще не загружены
         const gradient = ctx.createLinearGradient(0, 0, 0, h);
         gradient.addColorStop(0, '#1a1a2e');
         gradient.addColorStop(0.5, '#16213e');
@@ -143,9 +213,9 @@ export function drawBackground() {
 }
 
 export function drawOverlay() {
-    if (imagesLoaded && overlayImage && overlayImage.width > 0) {
-        // Растягиваем оверлей на весь канвас
-        ctx.drawImage(overlayImage, 0, 0, w, h);
+    // Просто копируем кэшированный оверлей
+    if (overlayCached && overlayCanvas) {
+        ctx.drawImage(overlayCanvas, 0, 0);
     }
 }
 
@@ -153,22 +223,28 @@ export function drawPlayer(x, y, radius, shootFlash = 0) {
     // Рисуем свечение при выстреле
     if (shootFlash > 0) {
         const intensity = shootFlash / 100; // 0 до 1
-        const glowRadius = radius * 0.8; // Уменьшили размер свечения
+        const glowRadius = radius * 0.8;
         
         // Позиция свечения - смещаем вверх к пушке
         const glowX = x;
-        const glowY = y - radius * 0.7; // Смещаем вверх к дулу пушки
+        const glowY = y - radius * 0.7;
         
-        // Создаем радиальный градиент для свечения (20% непрозрачности)
-        const gradient = ctx.createRadialGradient(glowX, glowY, radius * 0.2, glowX, glowY, glowRadius);
-        gradient.addColorStop(0, `rgba(255, 200, 50, ${0.2 * intensity})`);
-        gradient.addColorStop(0.5, `rgba(255, 150, 0, ${0.1 * intensity})`);
-        gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+        // Используем кэшированный градиент или создаем новый
+        if (!shootFlashGradientCache) {
+            shootFlashGradientCache = ctx.createRadialGradient(glowX, glowY, radius * 0.2, glowX, glowY, glowRadius);
+            shootFlashGradientCache.addColorStop(0, `rgba(255, 200, 50, 0.2)`);
+            shootFlashGradientCache.addColorStop(0.5, `rgba(255, 150, 0, 0.1)`);
+            shootFlashGradientCache.addColorStop(1, 'rgba(255, 100, 0, 0)');
+        }
         
-        ctx.fillStyle = gradient;
+        // Применяем интенсивность через глобальную прозрачность
+        ctx.save();
+        ctx.globalAlpha = intensity;
+        ctx.fillStyle = shootFlashGradientCache;
         ctx.beginPath();
         ctx.arc(glowX, glowY, glowRadius, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
     }
     
     // Рисуем игрока
@@ -266,31 +342,36 @@ export function drawBullet(x, y, radius, color) {
     const bulletWidth = radius * 1.5;
     const bulletHeight = radius * 6;
     
-    // Создаем вертикальный градиент (сверху вниз)
-    const gradient = ctx.createLinearGradient(x, y - bulletHeight / 2, x, y + bulletHeight / 2);
-    gradient.addColorStop(0, 'rgba(80, 60, 20, 0.3)'); // Темный сверху
-    gradient.addColorStop(0.3, 'rgba(150, 120, 60, 0.7)'); // Средний
-    gradient.addColorStop(0.7, 'rgba(255, 200, 80, 0.95)'); // Золотой
-    gradient.addColorStop(1, 'rgba(255, 230, 150, 1)'); // Яркий золотой снизу
+    // Используем кэшированный градиент или создаем новый
+    if (!bulletGradientCache) {
+        bulletGradientCache = ctx.createLinearGradient(0, -bulletHeight / 2, 0, bulletHeight / 2);
+        bulletGradientCache.addColorStop(0, 'rgba(80, 60, 20, 0.3)');
+        bulletGradientCache.addColorStop(0.3, 'rgba(150, 120, 60, 0.7)');
+        bulletGradientCache.addColorStop(0.7, 'rgba(255, 200, 80, 0.95)');
+        bulletGradientCache.addColorStop(1, 'rgba(255, 230, 150, 1)');
+    }
     
     ctx.save();
     
+    // Смещаем контекст к позиции пули
+    ctx.translate(x, y);
+    
     // Рисуем полоску с закругленным концом
-    ctx.fillStyle = gradient;
+    ctx.fillStyle = bulletGradientCache;
     ctx.beginPath();
     
     // Верхняя часть (прямоугольник)
-    const topY = y - bulletHeight / 2;
-    const bottomY = y + bulletHeight / 2;
+    const topY = -bulletHeight / 2;
+    const bottomY = bulletHeight / 2;
     
-    ctx.moveTo(x - bulletWidth / 2, topY);
-    ctx.lineTo(x + bulletWidth / 2, topY);
-    ctx.lineTo(x + bulletWidth / 2, bottomY - bulletWidth / 2);
+    ctx.moveTo(-bulletWidth / 2, topY);
+    ctx.lineTo(bulletWidth / 2, topY);
+    ctx.lineTo(bulletWidth / 2, bottomY - bulletWidth / 2);
     
     // Закругленный низ
-    ctx.arc(x, bottomY - bulletWidth / 2, bulletWidth / 2, 0, Math.PI, false);
+    ctx.arc(0, bottomY - bulletWidth / 2, bulletWidth / 2, 0, Math.PI, false);
     
-    ctx.lineTo(x - bulletWidth / 2, topY);
+    ctx.lineTo(-bulletWidth / 2, topY);
     ctx.closePath();
     ctx.fill();
     
