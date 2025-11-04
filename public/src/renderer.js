@@ -2,7 +2,7 @@
 import { CONFIG } from './config.js';
 
 let canvas, ctx, w, h;
-let playerImage, enemyImage;
+let playerImage, enemyImage, fastEnemyImage;
 let bgTileImage, overlayImage;
 let chainImage;
 let imagesLoaded = false;
@@ -24,6 +24,7 @@ export function initRenderer() {
     // Загружаем изображения
     playerImage = new Image();
     enemyImage = new Image();
+    fastEnemyImage = new Image();
     bgTileImage = new Image();
     overlayImage = new Image();
     chainImage = new Image();
@@ -38,6 +39,11 @@ export function initRenderer() {
             enemyImage.onload = resolve;
             enemyImage.onerror = reject;
             enemyImage.src = './img/sahur.png';
+        }),
+        new Promise((resolve, reject) => {
+            fastEnemyImage.onload = resolve;
+            fastEnemyImage.onerror = reject;
+            fastEnemyImage.src = './img/assasino.png';
         }),
         new Promise((resolve, reject) => {
             bgTileImage.onload = resolve;
@@ -307,29 +313,23 @@ export function drawChain(x, y, radius, chainAngle) {
 export function drawEnemy(enemy) {
     const { x, y, radius, animationFrame, hp, maxHp, isFast } = enemy;
     
-    if (imagesLoaded && enemyImage) {
+    // Выбираем нужное изображение в зависимости от типа врага
+    const enemyImg = isFast ? fastEnemyImage : enemyImage;
+    
+    if (imagesLoaded && enemyImg) {
         const size = radius * 2;
         
         // Анимированный спрайтшит - используем animationFrame для выбора кадра
-        const frameWidth = enemyImage.width / CONFIG.ENEMY_ANIMATION_FRAMES;
-        const frameHeight = enemyImage.height;
+        const frameWidth = enemyImg.width / CONFIG.ENEMY_ANIMATION_FRAMES;
+        const frameHeight = enemyImg.height;
         const sourceX = animationFrame * frameWidth;
         
         // Рисуем один анимированный спрайт
         ctx.drawImage(
-            enemyImage,
+            enemyImg,
             sourceX, 0, frameWidth, frameHeight, // источник (sx, sy, sw, sh)
             x - radius, y - radius, size, size   // назначение (dx, dy, dw, dh)
         );
-        
-        // Обводка для быстрых врагов
-        if (isFast) {
-            ctx.strokeStyle = '#FF3333';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
-            ctx.stroke();
-        }
     } else {
         // Fallback с анимацией
         ctx.fillStyle = isFast ? '#ff0000' : '#ff4444';
