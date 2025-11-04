@@ -1,8 +1,8 @@
 // Главный файл игры
 import { CONFIG } from './config.js';
-import { initRenderer, clear, drawPlayer, drawEnemy, drawBullet, drawSafeZone, drawPickup, drawActiveUpgrades, getSize, getContext } from './renderer.js';
+import { initRenderer, clear, drawBackground, drawOverlay, drawPlayer, drawChain, drawEnemy, drawBullet, drawSafeZone, drawPickup, drawActiveUpgrades, getSize, getContext } from './renderer.js';
 import { initInput, getInput, resetInput } from './input.js';
-import { getState, setState, isPlaying, isLose, GameState } from './state.js';
+import { getState, setState, isPlaying, isPaused, isLose, GameState } from './state.js';
 import { world } from './world.js';
 import { Player } from './player.js';
 import { BulletPool } from './bulletPool.js';
@@ -39,6 +39,30 @@ async function init() {
     // UI
     ui = new UI();
     ui.onRestart(restart);
+    
+    // Кнопка паузы
+    const pauseBtn = document.getElementById('pauseBtn');
+    const pauseModal = document.getElementById('pauseModal');
+    const resumeBtn = document.getElementById('resumeBtn');
+    const restartFromPauseBtn = document.getElementById('restartFromPauseBtn');
+    
+    pauseBtn.addEventListener('click', () => {
+        if (isPlaying()) {
+            setState(GameState.PAUSED);
+            pauseModal.classList.remove('hidden');
+        }
+    });
+    
+    resumeBtn.addEventListener('click', () => {
+        setState(GameState.PLAYING);
+        pauseModal.classList.add('hidden');
+    });
+    
+    restartFromPauseBtn.addEventListener('click', () => {
+        setState(GameState.PLAYING);
+        pauseModal.classList.add('hidden');
+        restart();
+    });
     
     
     // Кнопка сброса GamePush
@@ -113,6 +137,7 @@ function gameLoop(time) {
         update(dt);
     }
     
+    // Рендерим всегда (даже в паузе), чтобы игра не "замерзала"
     render();
     
     requestAnimationFrame(gameLoop);
@@ -171,20 +196,20 @@ function render() {
     const { w, h } = getSize();
     const ctx = getContext();
     
+    // Отрисовка фона (тайловый)
+    drawBackground();
+    
+    // Отрисовка оверлея (поверх фона)
+    drawOverlay();
+    
     // Отрисовка safe zone
     drawSafeZone(CONFIG.SAFE_ZONE_HEIGHT, CONFIG.SAFE_ZONE_COLOR);
     
-    // Отрисовка врагов (сортировка по глубине, Y-координате и ID)
+    // Отрисовка врагов: строгая сортировка по Y (ниже рисуем позже => выше по Z),
+    // затем по depth и id для стабильности
     const enemies = enemyPool.getActive().sort((a, b) => {
-        // Сначала по глубине (новые волны под старыми)
-        if (a.depth !== b.depth) {
-            return a.depth - b.depth;
-        }
-        // Затем по Y-координате (нижние враги под верхними)
-        if (Math.abs(a.y - b.y) > 1) { // только если разница в Y значительная
-            return a.y - b.y;
-        }
-        // Наконец по ID для стабильной сортировки
+        if (a.y !== b.y) return a.y - b.y;
+        if (a.depth !== b.depth) return a.depth - b.depth;
         return a.id - b.id;
     });
     for (const enemy of enemies) {
@@ -203,8 +228,11 @@ function render() {
         drawBullet(bullet.x, bullet.y, bullet.radius, bullet.color);
     }
     
-    // Отрисовка игрока
-    drawPlayer(player.x, player.y, player.radius);
+    // Отрисовка игрока (с эффектом свечения при выстреле)
+    drawPlayer(player.x, player.y, player.radius, player.shootFlash);
+    
+    // Отрисовка цепи (слой выше игрока)
+    drawChain(player.x, player.y, player.radius, player.chainAngle);
     
     // Отрисовка weapon override (например, лазер)
     upgradeManager.drawWeaponOverride(ctx);
@@ -247,6 +275,12 @@ function restart() {
     
     // Сброс UI
     ui.hideLoseScreen();
+    
+    // Скрываем модальное окно паузы если открыто
+    const pauseModal = document.getElementById('pauseModal');
+    if (pauseModal) {
+        pauseModal.classList.add('hidden');
+    }
     
     // Сброс world
     world.reset();
