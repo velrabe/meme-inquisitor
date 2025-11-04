@@ -63,6 +63,9 @@ async function init() {
     restartFromPauseBtn.addEventListener('click', () => {
         setState(GameState.PLAYING);
         pauseModal.classList.add('hidden');
+        // Сбрасываем уровень до 1 при "Начать сначала"
+        world.level = 1;
+        saveLocalLevel(1); // Сохраняем локально
         restart();
     });
     
@@ -91,10 +94,14 @@ async function init() {
             console.log('Resetting GamePush...');
             const result = await resetGamePush();
             if (result) {
-                alert('Сброс выполнен! Перезагрузите страницу для проверки.');
-                // Обновляем UI
+                // Сбрасываем все локально
                 world.bestScore = 0;
-                ui.updateBestScore(0);
+                world.level = 1;
+                localStorage.removeItem('bestScore');
+                localStorage.removeItem('level');
+                
+                // Перезагружаем страницу для чистого старта
+                window.location.reload();
             } else {
                 alert('Ошибка при сбросе!');
             }
