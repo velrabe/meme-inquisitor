@@ -23,7 +23,15 @@ export class Spawner {
     
     // Вычисляем требуемое количество волн для текущего уровня
     getWavesForLevel(level) {
-        return CONFIG.LEVEL_BASE_WAVES + (level - 1) * CONFIG.LEVEL_WAVE_INCREMENT;
+        // Используем массив волн из конфига
+        const index = level - 1;
+        if (index < CONFIG.LEVEL_WAVES.length) {
+            return CONFIG.LEVEL_WAVES[index];
+        }
+        // Для уровней выше максимального в массиве используем последнее значение + 30 за каждый уровень
+        const lastWaves = CONFIG.LEVEL_WAVES[CONFIG.LEVEL_WAVES.length - 1];
+        const extraLevels = level - CONFIG.LEVEL_WAVES.length;
+        return lastWaves + (extraLevels * 30);
     }
     
     // Проверяем и обновляем уровень
@@ -33,6 +41,9 @@ export class Spawner {
             this.world.level++;
             this.world.currentLevelWaves = 0;
             console.log(`Level Up! Now at level ${this.world.level}`);
+            
+            // Уведомляем об изменении уровня (для модального окна)
+            window.dispatchEvent(new CustomEvent('levelUp', { detail: { level: this.world.level } }));
         }
     }
     
@@ -85,13 +96,13 @@ export class Spawner {
     getEnemyHP() {
         const level = this.world.level;
         
-        // Уровень 5+: 10% шанс врага с 5 HP
-        if (level >= 5 && Math.random() < CONFIG.LEVEL_5_HP_ENEMY_CHANCE) {
+        // Уровень 6+: 10% шанс врага с 5 HP
+        if (level >= 6 && Math.random() < CONFIG.LEVEL_6_HP_ENEMY_CHANCE) {
             return 5;
         }
         
-        // Уровень 2+: 30% шанс врага с 2 HP
-        if (level >= 2 && Math.random() < CONFIG.LEVEL_2_HP_ENEMY_CHANCE) {
+        // Уровень 4+: 30% шанс врага с 2 HP
+        if (level >= 4 && Math.random() < CONFIG.LEVEL_4_HP_ENEMY_CHANCE) {
             return 2;
         }
         

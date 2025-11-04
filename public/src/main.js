@@ -66,6 +66,23 @@ async function init() {
         restart();
     });
     
+    // Модальное окно повышения уровня
+    const levelUpModal = document.getElementById('levelUpModal');
+    const levelUpText = document.getElementById('levelUpText');
+    const continueBtn = document.getElementById('continueBtn');
+    
+    window.addEventListener('levelUp', (event) => {
+        const previousLevel = event.detail.level - 1;
+        levelUpText.textContent = `Уровень ${previousLevel} пройден!`;
+        setState(GameState.PAUSED);
+        levelUpModal.classList.remove('hidden');
+    });
+    
+    continueBtn.addEventListener('click', () => {
+        setState(GameState.PLAYING);
+        levelUpModal.classList.add('hidden');
+    });
+    
     
     // Кнопка сброса GamePush
     const resetGPBtn = document.getElementById('resetGPBtn');
