@@ -13,7 +13,8 @@ export const world = {
         this.score = 0;
         this.currentLevelWaves = 0;
         this.totalWaves = 0;
-        // level и bestScore не сбрасываем - сохраняем прогресс
+        this.level = 1; // Начинаем с первого уровня при рестарте
+        // bestScore не сбрасываем - сохраняем рекорд
     }
 };
 
