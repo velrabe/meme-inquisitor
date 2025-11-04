@@ -10,7 +10,7 @@ import { EnemyPool } from './enemyPool.js';
 import { Spawner } from './spawner.js';
 import { CollisionSystem } from './collisions.js';
 import { UI } from './ui.js';
-import { initStorage, loadBestScore, saveLocalBestScore, saveBestScore, syncWithGamePush, resetGamePush } from './storage.js';
+import { initStorage, loadBestScore, saveLocalBestScore, saveBestScore, loadLevel, saveLocalLevel, saveLevel, syncWithGamePush, resetGamePush } from './storage.js';
 import { UpgradeManager } from './upgrades/upgradeManager.js';
 import { PickupPool } from './upgrades/pickupPool.js';
 
@@ -25,7 +25,9 @@ let upgradeManager;
 let pickupPool;
 let pickupSpawnTimer = 0;
 let recordBeatenThisSession = false; // Флаг: был ли побит рекорд в этой сессии
+let levelUpThisSession = false; // Флаг: был ли повышен уровень в этой сессии
 let gameOverHandled = false; // Флаг: был ли уже обработан game over
+let previousLevel = 1; // Предыдущий уровень для отслеживания изменений
 
 let lastTime = 0;
 
@@ -82,10 +84,13 @@ async function init() {
         });
     }
     
-    // Инициализация GamePush и загрузка лучшего счета
+    // Инициализация GamePush и загрузка лучшего счета и уровня
     await initStorage();
     world.bestScore = await loadBestScore();
+    world.level = await loadLevel();
+    previousLevel = world.level; // Запоминаем начальный уровень
     ui.updateBestScore(world.bestScore);
+    ui.updateLevel(world.level);
     
     // Создание пулов
     bulletPool = new BulletPool();
@@ -103,7 +108,7 @@ async function init() {
     player = new Player(bulletPool, upgradeManager);
     world.player = player;
     
-    spawner = new Spawner(enemyPool);
+    spawner = new Spawner(enemyPool, world);
     collisionSystem = new CollisionSystem(world);
     
     // Старт игры
@@ -115,6 +120,8 @@ async function init() {
         if (recordBeatenThisSession) {
             saveLocalBestScore(world.bestScore);
         }
+        // Сохраняем текущий уровень
+        saveLocalLevel(world.level);
     });
     
     // Сохранение ЛОКАЛЬНО при потере фокуса (переключение вкладок)
@@ -123,6 +130,8 @@ async function init() {
         if (recordBeatenThisSession) {
             saveLocalBestScore(world.bestScore);
         }
+        // Сохраняем текущий уровень
+        saveLocalLevel(world.level);
     });
     
     console.log('Game initialized, starting loop...');
@@ -173,6 +182,17 @@ function update(dt) {
     
     // 8. Обновление UI
     ui.updateScore(world.score);
+    ui.updateLevel(world.level);
+    ui.updateWaves(world.currentLevelWaves, spawner.getWavesForLevel(world.level));
+    
+    // Проверка повышения уровня и сохранение ЛОКАЛЬНО
+    if (world.level > previousLevel) {
+        previousLevel = world.level;
+        // Сохраняем новый уровень ТОЛЬКО локально
+        saveLocalLevel(world.level);
+        // Устанавливаем флаг что уровень повышен в этой сессии
+        levelUpThisSession = true;
+    }
     
     // Проверка нового рекорда и сохранение ЛОКАЛЬНО
     if (world.score > world.bestScore) {
@@ -265,6 +285,18 @@ function handleGameOver() {
         // Сбрасываем флаг
         recordBeatenThisSession = false;
     }
+    
+    // Сохраняем уровень в GamePush если он был повышен
+    if (levelUpThisSession) {
+        // Асинхронно сохраняем без блокировки UI
+        saveLevel(world.level).then(() => {
+            console.log('Level saved to GamePush:', world.level);
+        }).catch(err => {
+            console.error('Failed to save level to GamePush:', err);
+        });
+        // Сбрасываем флаг
+        levelUpThisSession = false;
+    }
 }
 
 function restart() {
@@ -296,13 +328,17 @@ function restart() {
     // Сброс таймера спавна бонусов и флагов
     pickupSpawnTimer = 0;
     recordBeatenThisSession = false;
+    levelUpThisSession = false;
     gameOverHandled = false;
+    previousLevel = world.level; // Запоминаем текущий уровень
     
     // Сброс ввода
     resetInput();
     
     // Обновление UI
     ui.updateScore(0);
+    ui.updateLevel(world.level);
+    ui.updateWaves(0, spawner.getWavesForLevel(world.level));
     
     // Сброс времени
     lastTime = 0;

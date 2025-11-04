@@ -52,6 +52,78 @@ export function initStorage() {
     });
 }
 
+// Загрузка уровня (аналогично loadBestScore)
+export async function loadLevel() {
+    // Сначала загружаем из localStorage (локальное хранение)
+    const localLevelStr = localStorage.getItem('level');
+    const localLevel = localLevelStr ? parseInt(localLevelStr, 10) : 1;
+    
+    // Ждем немного, если GamePush еще не готов
+    if (!window.gp || !window.gp.player) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Ждем 1 секунду
+    }
+    
+    // Попробуем использовать GamePush если он доступен
+    if (window.gp && window.gp.player) {
+        try {
+            // КРИТИЧЕСКИ ВАЖНО: ждем готовности player
+            await window.gp.player.ready;
+            
+            // Загружаем level из GamePush
+            const cloudLevel = window.gp.player.get('level');
+            
+            if (cloudLevel !== null && cloudLevel !== undefined) {
+                const cloudLevelNum = cloudLevel || 1;
+                
+                // Берем максимальное значение между локальным и облачным
+                const maxLevel = Math.max(localLevel, cloudLevelNum);
+                
+                // ВСЕГДА обновляем локальное хранилище максимальным значением
+                localStorage.setItem('level', maxLevel.toString());
+                
+                // Если локальный уровень больше облачного - сохраняем в GamePush
+                if (localLevel > cloudLevelNum) {
+                    window.gp.player.set('level', localLevel);
+                    await window.gp.player.sync();
+                }
+                
+                return maxLevel;
+            }
+        } catch (err) {
+            console.error('Failed to sync level with GamePush:', err);
+        }
+    }
+    
+    // Возвращаем локальный уровень
+    return localLevel;
+}
+
+// Сохранение ТОЛЬКО локально (без GamePush)
+export function saveLocalLevel(level) {
+    localStorage.setItem('level', level.toString());
+}
+
+export async function saveLevel(level) {
+    // Всегда сохраняем локально
+    localStorage.setItem('level', level.toString());
+    
+    // Попробуем использовать GamePush если он доступен
+    if (window.gp && window.gp.player) {
+        try {
+            // КРИТИЧЕСКИ ВАЖНО: ждем готовности player
+            await window.gp.player.ready;
+            
+            // Сохраняем в GamePush
+            window.gp.player.set('level', level);
+            
+            // Синхронизируем с облаком
+            await window.gp.player.sync();
+        } catch (err) {
+            console.error('Failed to sync level to GamePush:', err);
+        }
+    }
+}
+
 export async function loadBestScore() {
     // Сначала загружаем из localStorage (локальное хранение)
     const localScore = localStorage.getItem('bestScore');
@@ -149,14 +221,16 @@ export async function resetGamePush() {
         // Ждем готовности player
         await window.gp.player.ready;
         
-        // Сбрасываем best_score в GamePush
+        // Сбрасываем best_score и level в GamePush
         window.gp.player.set('best_score', 0);
+        window.gp.player.set('level', 1);
         
         // Синхронизируем сброс
         await window.gp.player.sync();
         
         // Также сбрасываем локальное хранилище
         localStorage.removeItem('bestScore');
+        localStorage.removeItem('level');
         
         return true;
         

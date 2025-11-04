@@ -305,7 +305,7 @@ export function drawChain(x, y, radius, chainAngle) {
 }
 
 export function drawEnemy(enemy) {
-    const { x, y, radius, animationFrame } = enemy;
+    const { x, y, radius, animationFrame, hp, maxHp, isFast } = enemy;
     
     if (imagesLoaded && enemyImage) {
         const size = radius * 2;
@@ -321,19 +321,50 @@ export function drawEnemy(enemy) {
             sourceX, 0, frameWidth, frameHeight, // источник (sx, sy, sw, sh)
             x - radius, y - radius, size, size   // назначение (dx, dy, dw, dh)
         );
+        
+        // Обводка для быстрых врагов
+        if (isFast) {
+            ctx.strokeStyle = '#FF3333';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
+            ctx.stroke();
+        }
     } else {
         // Fallback с анимацией
-        ctx.fillStyle = '#ff4444';
+        ctx.fillStyle = isFast ? '#ff0000' : '#ff4444';
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fill();
         
         // Простая анимация - изменение размера
         const animScale = 1 + Math.sin(animationFrame * 0.5) * 0.1;
-        ctx.fillStyle = `rgba(255, 68, 68, ${0.7 + Math.sin(animationFrame * 0.3) * 0.3})`;
+        ctx.fillStyle = isFast ? `rgba(255, 0, 0, ${0.7 + Math.sin(animationFrame * 0.3) * 0.3})` : `rgba(255, 68, 68, ${0.7 + Math.sin(animationFrame * 0.3) * 0.3})`;
         ctx.beginPath();
         ctx.arc(x, y, radius * animScale, 0, Math.PI * 2);
         ctx.fill();
+    }
+    
+    // HP индикатор (если нужно больше 1 HP)
+    if (maxHp > 1) {
+        const barWidth = radius * 2;
+        const barHeight = 5;
+        const barX = x - radius;
+        const barY = y + radius + 5;
+        
+        // Фон полоски HP
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        
+        // Текущее HP
+        ctx.fillStyle = hp > maxHp * 0.5 ? '#4CAF50' : (hp > maxHp * 0.25 ? '#FFC107' : '#F44336');
+        const hpWidth = barWidth * (hp / maxHp);
+        ctx.fillRect(barX, barY, hpWidth, barHeight);
+        
+        // Обводка
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(barX, barY, barWidth, barHeight);
     }
 }
 

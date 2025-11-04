@@ -23,6 +23,12 @@ export const CONFIG = {
     ENEMY_POOL_SIZE: 50,
     ENEMY_HP: 1,
     
+    // Быстрые враги
+    FAST_ENEMY_SPEED_MULTIPLIER: 1.5, // в 1.5 раза быстрее
+    FAST_ENEMY_MIN_WAVE: 10, // не появляются первые 10-15 волн
+    FAST_ENEMY_WAVE_INTERVAL: 4, // появляются раз в 3-5 волн (среднее 4)
+    FAST_ENEMY_COUNT_PER_WAVE: 2, // 2-3 врага за волну (среднее 2.5)
+    
     // Анимация врагов
     ENEMY_ANIMATION_SPEED: 200, // мс между кадрами
     ENEMY_ANIMATION_FRAMES: 2, // количество кадров анимации
@@ -54,5 +60,14 @@ export const CONFIG = {
     PICKUP_RADIUS: 20,
     PICKUP_SPEED: 80,
     PICKUP_POOL_SIZE: 20,
+    
+    // Система уровней
+    LEVEL_BASE_WAVES: 30, // уровень 1: 30 волн
+    LEVEL_WAVE_INCREMENT: 20, // каждый следующий уровень +20 волн
+    // Уровень 1: 30 волн, Уровень 2: 50 волн, Уровень 3: 70 волн и т.д.
+    
+    // Враги с повышенным HP
+    LEVEL_2_HP_ENEMY_CHANCE: 0.3, // 30% шанс врага с 2 HP на уровне 2+
+    LEVEL_5_HP_ENEMY_CHANCE: 0.1, // 10% шанс врага с 5 HP на уровне 5+
 };
 

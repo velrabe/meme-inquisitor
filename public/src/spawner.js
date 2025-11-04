@@ -3,8 +3,9 @@ import { CONFIG } from './config.js';
 import { getSize } from './renderer.js';
 
 export class Spawner {
-    constructor(enemyPool) {
+    constructor(enemyPool, world) {
         this.enemyPool = enemyPool;
+        this.world = world;
         this.reset();
     }
     
@@ -17,6 +18,22 @@ export class Spawner {
         this.waveDelay = 2000; // задержка между волнами
         this.depthCounter = 1000; // начальная глубина (большое число)
         this.lastSpawnByColumn = new Map(); // column -> timestamp
+        this.fastEnemyWaveCounter = 0; // счетчик для быстрых врагов
+    }
+    
+    // Вычисляем требуемое количество волн для текущего уровня
+    getWavesForLevel(level) {
+        return CONFIG.LEVEL_BASE_WAVES + (level - 1) * CONFIG.LEVEL_WAVE_INCREMENT;
+    }
+    
+    // Проверяем и обновляем уровень
+    updateLevel() {
+        const requiredWaves = this.getWavesForLevel(this.world.level);
+        if (this.world.currentLevelWaves >= requiredWaves) {
+            this.world.level++;
+            this.world.currentLevelWaves = 0;
+            console.log(`Level Up! Now at level ${this.world.level}`);
+        }
     }
     
     update(dt) {
@@ -44,6 +61,14 @@ export class Spawner {
             this.spawnWave();
             this.waveTimer = this.waveDelay;
             this.depthCounter--; // уменьшаем глубину для новой волны (чтобы была под старой)
+            
+            // Увеличиваем счетчики волн
+            this.world.currentLevelWaves++;
+            this.world.totalWaves++;
+            this.fastEnemyWaveCounter++;
+            
+            // Проверяем и обновляем уровень
+            this.updateLevel();
         }
     }
     
@@ -56,6 +81,40 @@ export class Spawner {
         return Math.min(baseCount + waveBonus + randomBonus, 10); // выше потолок
     }
     
+    // Определяем HP врага в зависимости от уровня
+    getEnemyHP() {
+        const level = this.world.level;
+        
+        // Уровень 5+: 10% шанс врага с 5 HP
+        if (level >= 5 && Math.random() < CONFIG.LEVEL_5_HP_ENEMY_CHANCE) {
+            return 5;
+        }
+        
+        // Уровень 2+: 30% шанс врага с 2 HP
+        if (level >= 2 && Math.random() < CONFIG.LEVEL_2_HP_ENEMY_CHANCE) {
+            return 2;
+        }
+        
+        return 1; // обычный враг
+    }
+    
+    // Проверяем, нужно ли спавнить быстрых врагов в этой волне
+    shouldSpawnFastEnemies() {
+        // Не появляются первые 10-15 волн
+        if (this.world.totalWaves < CONFIG.FAST_ENEMY_MIN_WAVE) {
+            return false;
+        }
+        
+        // Появляются раз в 3-5 волн (используем интервал из конфига)
+        return this.fastEnemyWaveCounter >= CONFIG.FAST_ENEMY_WAVE_INTERVAL;
+    }
+    
+    // Получаем количество быстрых врагов для волны
+    getFastEnemyCount() {
+        // 2-3 врага (случайно)
+        return Math.floor(CONFIG.FAST_ENEMY_COUNT_PER_WAVE + Math.random() * 1.5);
+    }
+    
     spawnWave() {
         const { w } = getSize();
         const columns = CONFIG.SPAWN_COLUMNS;
@@ -64,6 +123,16 @@ export class Spawner {
         const rows = CONFIG.SPAWN_WAVE_ROWS;
         const vGap = CONFIG.SPAWN_ROW_VERTICAL_GAP;
         const jitterX = CONFIG.SPAWN_ROW_JITTER_X;
+
+        // Проверяем нужно ли спавнить быстрых врагов
+        const spawnFast = this.shouldSpawnFastEnemies();
+        const fastCount = spawnFast ? this.getFastEnemyCount() : 0;
+        let fastSpawned = 0;
+        
+        // Если спавним быстрых врагов - сбрасываем счетчик
+        if (spawnFast) {
+            this.fastEnemyWaveCounter = 0;
+        }
 
         // Формируем ряды с шахматным смещением
         for (let row = 0; row < rows; row++) {
@@ -86,7 +155,15 @@ export class Spawner {
                 // легкий джиттер по X, чтобы не было идеальных колонок
                 x += (Math.random() * 2 - 1) * jitterX;
                 const y = -CONFIG.ENEMY_RADIUS - (row * vGap);
-                this.enemyPool.spawn(x, y, this.enemySpeed, this.depthCounter);
+                
+                // Определяем параметры врага
+                const isFast = fastSpawned < fastCount;
+                const hp = this.getEnemyHP();
+                const speed = isFast ? this.enemySpeed * CONFIG.FAST_ENEMY_SPEED_MULTIPLIER : this.enemySpeed;
+                
+                this.enemyPool.spawn(x, y, speed, this.depthCounter, hp, isFast);
+                
+                if (isFast) fastSpawned++;
                 placed++;
             }
             // увеличиваем глубину, чтобы верхние ряды уходили под нижние по мере продвижения
@@ -115,7 +192,10 @@ export class Spawner {
         const x = column * columnWidth + columnWidth / 2;
         const y = -CONFIG.ENEMY_RADIUS; // Спавн за верхней границей
         
-        this.enemyPool.spawn(x, y, this.enemySpeed, this.depthCounter);
+        // Определяем HP врага
+        const hp = this.getEnemyHP();
+        
+        this.enemyPool.spawn(x, y, this.enemySpeed, this.depthCounter, hp, false);
     }
 }
 

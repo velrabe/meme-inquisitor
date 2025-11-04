@@ -3,6 +3,8 @@ export class UI {
     constructor() {
         this.scoreElement = document.getElementById('scoreValue');
         this.bestScoreElement = document.getElementById('bestValue');
+        this.levelElement = document.getElementById('levelValue');
+        this.wavesElement = document.getElementById('wavesValue');
         this.loseScreen = document.getElementById('loseScreen');
         this.finalScoreElement = document.getElementById('finalScore');
         this.finalBestElement = document.getElementById('finalBest');
@@ -15,6 +17,18 @@ export class UI {
     
     updateBestScore(best) {
         this.bestScoreElement.textContent = best;
+    }
+    
+    updateLevel(level) {
+        if (this.levelElement) {
+            this.levelElement.textContent = level;
+        }
+    }
+    
+    updateWaves(current, required) {
+        if (this.wavesElement) {
+            this.wavesElement.textContent = `${current}/${required}`;
+        }
     }
     
     showLoseScreen(score, best) {
