@@ -21,6 +21,25 @@ export class Spawner {
         this.fastEnemyWaveCounter = 0; // счетчик для быстрых врагов
     }
     
+    // Получить параметры сложности для текущего уровня
+    getLevelParams() {
+        if (!CONFIG.FLAGS.FIXED_DIFFICULTY) {
+            // Если фиксированная сложность выключена - возвращаем текущие значения
+            return { enemySpeed: this.enemySpeed, spawnDelay: this.delay };
+        }
+        
+        const level = this.world.totalWaves + 1; // Уровень определяется по волне
+        
+        // Находим параметры для уровня
+        if (CONFIG.LEVEL_PARAMS[level]) {
+            return CONFIG.LEVEL_PARAMS[level];
+        }
+        
+        // Для уровней выше максимального используем параметры последнего уровня
+        const maxLevel = Math.max(...Object.keys(CONFIG.LEVEL_PARAMS).map(Number));
+        return CONFIG.LEVEL_PARAMS[maxLevel];
+    }
+    
     // Вычисляем требуемое количество волн для текущего уровня
     getWavesForLevel(level) {
         // Используем массив волн из конфига
@@ -51,19 +70,30 @@ export class Spawner {
         this.timer -= dt * 1000; // dt в секундах, timer в мс
         this.waveTimer -= dt * 1000;
         
+        // Получаем параметры для текущего уровня (если включена фиксированная сложность)
+        const levelParams = this.getLevelParams();
+        
+        // Обновляем параметры спавна
+        if (CONFIG.FLAGS.FIXED_DIFFICULTY) {
+            this.delay = levelParams.spawnDelay;
+            this.enemySpeed = levelParams.enemySpeed;
+        }
+        
         // Обычный спавн отдельных врагов
         if (this.timer <= 0) {
             this.spawnEnemy();
             this.timer = this.delay;
             
-            // Постепенно ускоряем волну
-            this.waveCount++;
-            if (this.waveCount % 0.2 === 0) { // ускоряем еще чаще
-                this.delay = Math.max(
-                    CONFIG.SPAWN_MIN_DELAY,
-                    this.delay * CONFIG.SPAWN_ACCELERATION
-                );
-                this.enemySpeed += 0.1; // увеличиваем медленнее
+            // Постепенно ускоряем волну (только если фиксированная сложность ВЫКЛЮЧЕНА)
+            if (!CONFIG.FLAGS.FIXED_DIFFICULTY) {
+                this.waveCount++;
+                if (this.waveCount % 0.2 === 0) { // ускоряем еще чаще
+                    this.delay = Math.max(
+                        CONFIG.SPAWN_MIN_DELAY,
+                        this.delay * CONFIG.SPAWN_ACCELERATION
+                    );
+                    this.enemySpeed += 0.1; // увеличиваем медленнее
+                }
             }
         }
         

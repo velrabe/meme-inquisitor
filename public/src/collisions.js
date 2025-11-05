@@ -24,11 +24,14 @@ export class CollisionSystem {
             for (const enemy of enemies) {
                 if (this.circleCollision(bullet, enemy)) {
                     // Столкновение!
-                    const killed = enemy.hit();
+                    const damage = this.world.player ? (this.world.player.damage || 1) : 1;
+                    const killed = enemy.hit(damage);
                     
                     if (killed) {
-                        // Враг убит, добавляем очки
-                        this.world.score += CONFIG.POINTS_PER_KILL;
+                        // Враг убит, добавляем XP в sessionScore, монеты и kills
+                        this.world.sessionScore += CONFIG.POINTS_PER_KILL;
+                        this.world.coins += CONFIG.COINS_PER_KILL;
+                        this.world.kills++;
                     }
                     
                     // Вызываем хук для обработки попадания (пирсинг и т.п.)

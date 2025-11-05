@@ -210,6 +210,166 @@ export async function syncWithGamePush() {
 }
 
 
+// Загрузка монет
+export async function loadCoins() {
+    // Сначала загружаем из localStorage
+    const localCoins = localStorage.getItem('coins');
+    const localCoinsValue = localCoins ? parseInt(localCoins, 10) : 0;
+    
+    // Ждем немного, если GamePush еще не готов
+    if (!window.gp || !window.gp.player) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    // Попробуем использовать GamePush если он доступен
+    if (window.gp && window.gp.player) {
+        try {
+            await window.gp.player.ready;
+            
+            const cloudCoins = window.gp.player.get('coins');
+            
+            if (cloudCoins !== null && cloudCoins !== undefined) {
+                const cloudCoinsValue = cloudCoins || 0;
+                
+                // Берем максимальное значение
+                const maxCoins = Math.max(localCoinsValue, cloudCoinsValue);
+                
+                // Обновляем локальное хранилище
+                localStorage.setItem('coins', maxCoins.toString());
+                
+                // Если локальные монеты больше - сохраняем в GamePush
+                if (localCoinsValue > cloudCoinsValue) {
+                    window.gp.player.set('coins', localCoinsValue);
+                    await window.gp.player.sync();
+                }
+                
+                return maxCoins;
+            }
+        } catch (err) {
+            console.error('Failed to sync coins with GamePush:', err);
+        }
+    }
+    
+    return localCoinsValue;
+}
+
+// Сохранение монет локально
+export function saveLocalCoins(coins) {
+    localStorage.setItem('coins', coins.toString());
+}
+
+// Сохранение монет в GamePush
+export async function saveCoins(coins) {
+    // Всегда сохраняем локально
+    localStorage.setItem('coins', coins.toString());
+    
+    // Попробуем использовать GamePush если он доступен
+    if (window.gp && window.gp.player) {
+        try {
+            await window.gp.player.ready;
+            
+            window.gp.player.set('coins', coins);
+            
+            await window.gp.player.sync();
+        } catch (err) {
+            console.error('Failed to sync coins to GamePush:', err);
+        }
+    }
+}
+
+// Загрузка статистики игрока (rank, score, kills, deaths)
+export async function loadPlayerStats() {
+    const stats = {
+        score: 0,
+        rank: 1,
+        kills: 0,
+        deaths: 0
+    };
+    
+    // Загружаем из localStorage
+    const localScore = localStorage.getItem('score');
+    const localRank = localStorage.getItem('rank');
+    const localKills = localStorage.getItem('kills');
+    const localDeaths = localStorage.getItem('deaths');
+    
+    if (localScore) stats.score = parseInt(localScore, 10) || 0;
+    if (localRank) stats.rank = parseInt(localRank, 10) || 1;
+    if (localKills) stats.kills = parseInt(localKills, 10) || 0;
+    if (localDeaths) stats.deaths = parseInt(localDeaths, 10) || 0;
+    
+    // Ждем GamePush
+    if (!window.gp || !window.gp.player) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    // Синхронизируем с GamePush
+    if (window.gp && window.gp.player) {
+        try {
+            await window.gp.player.ready;
+            
+            const cloudScore = window.gp.player.get('score') || 0;
+            const cloudRank = window.gp.player.get('rank') || 1;
+            const cloudKills = window.gp.player.get('kills') || 0;
+            const cloudDeaths = window.gp.player.get('deaths') || 0;
+            
+            // Берем максимальные значения
+            stats.score = Math.max(stats.score, cloudScore);
+            stats.rank = Math.max(stats.rank, cloudRank);
+            stats.kills = Math.max(stats.kills, cloudKills);
+            stats.deaths = Math.max(stats.deaths, cloudDeaths);
+            
+            // Сохраняем локально
+            localStorage.setItem('score', stats.score.toString());
+            localStorage.setItem('rank', stats.rank.toString());
+            localStorage.setItem('kills', stats.kills.toString());
+            localStorage.setItem('deaths', stats.deaths.toString());
+            
+            // Если локальные больше - обновляем cloud
+            if (stats.score > cloudScore || stats.rank > cloudRank || stats.kills > cloudKills || stats.deaths > cloudDeaths) {
+                window.gp.player.set('score', stats.score);
+                window.gp.player.set('rank', stats.rank);
+                window.gp.player.set('kills', stats.kills);
+                window.gp.player.set('deaths', stats.deaths);
+                await window.gp.player.sync();
+            }
+        } catch (err) {
+            console.error('Failed to sync player stats with GamePush:', err);
+        }
+    }
+    
+    return stats;
+}
+
+// Сохранение статистики локально
+export function saveLocalPlayerStats(stats) {
+    localStorage.setItem('score', stats.score.toString());
+    localStorage.setItem('rank', stats.rank.toString());
+    localStorage.setItem('kills', stats.kills.toString());
+    localStorage.setItem('deaths', stats.deaths.toString());
+}
+
+// Сохранение статистики в GamePush
+export async function savePlayerStats(stats) {
+    // Всегда сохраняем локально
+    saveLocalPlayerStats(stats);
+    
+    // Пытаемся синхронизировать с GamePush
+    if (window.gp && window.gp.player) {
+        try {
+            await window.gp.player.ready;
+            
+            window.gp.player.set('score', stats.score);
+            window.gp.player.set('rank', stats.rank);
+            window.gp.player.set('kills', stats.kills);
+            window.gp.player.set('deaths', stats.deaths);
+            
+            await window.gp.player.sync();
+        } catch (err) {
+            console.error('Failed to sync player stats to GamePush:', err);
+        }
+    }
+}
+
 // Функция для сброса данных GamePush
 export async function resetGamePush() {
     if (!window.gp || !window.gp.player) {
@@ -221,9 +381,14 @@ export async function resetGamePush() {
         // Ждем готовности player
         await window.gp.player.ready;
         
-        // Сбрасываем best_score и level в GamePush
+        // Сбрасываем все поля в GamePush
         window.gp.player.set('best_score', 0);
         window.gp.player.set('level', 1);
+        window.gp.player.set('coins', 0);
+        window.gp.player.set('score', 0);
+        window.gp.player.set('rank', 1);
+        window.gp.player.set('kills', 0);
+        window.gp.player.set('deaths', 0);
         
         // Синхронизируем сброс
         await window.gp.player.sync();
@@ -231,6 +396,11 @@ export async function resetGamePush() {
         // Также сбрасываем локальное хранилище
         localStorage.removeItem('bestScore');
         localStorage.removeItem('level');
+        localStorage.removeItem('coins');
+        localStorage.removeItem('score');
+        localStorage.removeItem('rank');
+        localStorage.removeItem('kills');
+        localStorage.removeItem('deaths');
         
         return true;
         

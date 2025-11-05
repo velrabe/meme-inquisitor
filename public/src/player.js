@@ -20,6 +20,8 @@ export class Player {
         this.shootFlash = 0; // Таймер свечения при выстреле
         this.velocity = 0; // Текущая скорость для плавного ускорения
         this.chainAngle = 0; // Угол поворота цепи
+        this.damage = 1; // Базовый урон (может быть изменен магазином)
+        this.bulletSpeed = CONFIG.BULLET_SPEED; // Базовая скорость пуль (может быть изменена)
     }
     
     update(dt, input) {
@@ -109,14 +111,18 @@ export class Player {
             return;
         }
 
-        // Получаем мультипликатор скорости пули
-        const speedMultiplier = this.upgradeManager 
+        // Получаем мультипликатор скорости пули из upgradeManager
+        const upgradeMultiplier = this.upgradeManager 
             ? this.upgradeManager.multipliers.bulletSpeed 
             : 1;
+        
+        // Комбинируем с bulletSpeed из профиля (магазина)
+        const baseSpeed = this.bulletSpeed / CONFIG.BULLET_SPEED; // относительное значение
+        const finalMultiplier = baseSpeed * upgradeMultiplier;
 
         // Создаем базовую пулю
         const fireFn = (x, y, angle = -Math.PI / 2) => {
-            const bullet = this.bulletPool.spawn(x, y, angle, speedMultiplier);
+            const bullet = this.bulletPool.spawn(x, y, angle, finalMultiplier);
             if (bullet && this.upgradeManager) {
                 this.upgradeManager.onBulletSpawn(bullet);
             }

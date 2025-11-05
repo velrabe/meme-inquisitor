@@ -10,9 +10,12 @@ import { EnemyPool } from './enemyPool.js';
 import { Spawner } from './spawner.js';
 import { CollisionSystem } from './collisions.js';
 import { UI } from './ui.js';
-import { initStorage, loadBestScore, saveLocalBestScore, saveBestScore, loadLevel, saveLocalLevel, saveLevel, syncWithGamePush, resetGamePush } from './storage.js';
+import { initStorage, loadBestScore, saveLocalBestScore, saveBestScore, loadLevel, saveLocalLevel, saveLevel, loadCoins, saveLocalCoins, saveCoins, loadPlayerStats, saveLocalPlayerStats, savePlayerStats, syncWithGamePush, resetGamePush } from './storage.js';
 import { UpgradeManager } from './upgrades/upgradeManager.js';
 import { PickupPool } from './upgrades/pickupPool.js';
+import { Profile } from './profile.js';
+import { SHOP_ITEMS } from './shop.js';
+import { getRankFromXP, getRankTitle, getStarsForRank } from './rank.js';
 
 // Игровые системы
 let player;
@@ -23,6 +26,7 @@ let collisionSystem;
 let ui;
 let upgradeManager;
 let pickupPool;
+let profile; // Профиль игрока с покупками
 let pickupSpawnTimer = 0;
 let recordBeatenThisSession = false; // Флаг: был ли побит рекорд в этой сессии
 let levelUpThisSession = false; // Флаг: был ли повышен уровень в этой сессии
@@ -86,6 +90,167 @@ async function init() {
         levelUpModal.classList.add('hidden');
     });
     
+    // Магазин
+    const shopBtn = document.getElementById('shopBtn');
+    const shopModal = document.getElementById('shopModal');
+    const closeShopBtn = document.getElementById('closeShopBtn');
+    const shopItemsContainer = document.getElementById('shopItems');
+    const shopCoinsValue = document.getElementById('shopCoinsValue');
+    const purchasedUpgradesContainer = document.getElementById('purchasedUpgrades');
+    
+    function updateShopUI() {
+        // Проверяем, что профиль инициализирован
+        if (!profile) {
+            console.warn('Profile not initialized yet');
+            return;
+        }
+        
+        // Обновляем количество монет в магазине
+        if (shopCoinsValue) {
+            shopCoinsValue.textContent = world.coins;
+        }
+        
+        // Очищаем и перестраиваем список предметов
+        if (shopItemsContainer) {
+            shopItemsContainer.innerHTML = '';
+            
+            SHOP_ITEMS.forEach(item => {
+                const currentLevel = profile.getUpgradeLevel(item.id);
+                const maxed = currentLevel >= item.maxLevel;
+                
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'shop-item';
+                
+                itemDiv.innerHTML = `
+                    <div class="shop-item-info">
+                        <div class="shop-item-name">${item.name}</div>
+                        <div class="shop-item-description">${item.description}</div>
+                        <div class="shop-item-level">Уровень: ${currentLevel}/${item.maxLevel}</div>
+                    </div>
+                    <div class="shop-item-actions">
+                        <div class="shop-item-cost">💰 ${item.cost}</div>
+                        <button class="shop-buy-btn" data-item-id="${item.id}" ${maxed ? 'disabled' : ''}>
+                            ${maxed ? 'МАКС' : 'Купить'}
+                        </button>
+                    </div>
+                `;
+                
+                shopItemsContainer.appendChild(itemDiv);
+            });
+            
+            // Добавляем обработчики на кнопки покупки
+            const buyButtons = shopItemsContainer.querySelectorAll('.shop-buy-btn');
+            buyButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const itemId = btn.getAttribute('data-item-id');
+                    const item = SHOP_ITEMS.find(i => i.id === itemId);
+                    
+                    if (!item) return;
+                    
+                    // Пытаемся купить
+                    const success = profile.buyUpgrade(itemId, item.cost, world);
+                    
+                    if (success) {
+                        // Сохраняем монеты
+                        saveLocalCoins(world.coins);
+                        
+                        // Обновляем UI
+                        ui.updateCoins(world.coins);
+                        updateShopUI();
+                        updatePurchasedUpgradesUI();
+                        
+                        // Применяем улучшения к игроку
+                        profile.applyUpgrades(player, CONFIG, SHOP_ITEMS);
+                    }
+                });
+            });
+        }
+    }
+    
+    function updatePurchasedUpgradesUI() {
+        if (!purchasedUpgradesContainer || !profile) return;
+        
+        purchasedUpgradesContainer.innerHTML = '';
+        
+        // Показываем только купленные улучшения
+        SHOP_ITEMS.forEach(item => {
+            const level = profile.getUpgradeLevel(item.id);
+            
+            if (level > 0) {
+                const upgradeDiv = document.createElement('div');
+                upgradeDiv.className = 'purchased-upgrade-item';
+                upgradeDiv.innerHTML = `
+                    <span class="upgrade-name">${item.name}</span>
+                    <span class="upgrade-level">Lv.${level}</span>
+                `;
+                purchasedUpgradesContainer.appendChild(upgradeDiv);
+            }
+        });
+    }
+    
+    shopBtn.addEventListener('click', () => {
+        setState(GameState.PAUSED);
+        updateShopUI();
+        shopModal.classList.remove('hidden');
+    });
+    
+    closeShopBtn.addEventListener('click', () => {
+        setState(GameState.PLAYING);
+        shopModal.classList.add('hidden');
+    });
+    
+    // Модальное окно статистики
+    const rankSection = document.getElementById('rankSection');
+    const statsModal = document.getElementById('statsModal');
+    const closeStatsBtn = document.getElementById('closeStatsBtn');
+    const statsRank = document.getElementById('statsRank');
+    const statsTitle = document.getElementById('statsTitle');
+    const statsTotalXP = document.getElementById('statsTotalXP');
+    const statsKills = document.getElementById('statsKills');
+    const statsDeaths = document.getElementById('statsDeaths');
+    
+    function updateStatsModal() {
+        if (statsRank) statsRank.textContent = world.rank;
+        if (statsTitle) statsTitle.textContent = getRankTitle(world.rank);
+        if (statsTotalXP) statsTotalXP.textContent = (world.score || 0).toLocaleString();
+        if (statsKills) statsKills.textContent = (world.kills || 0).toLocaleString();
+        if (statsDeaths) statsDeaths.textContent = (world.deaths || 0).toLocaleString();
+    }
+    
+    if (rankSection) {
+        rankSection.addEventListener('click', () => {
+            updateStatsModal();
+            statsModal.classList.remove('hidden');
+        });
+    }
+    
+    if (closeStatsBtn) {
+        closeStatsBtn.addEventListener('click', () => {
+            statsModal.classList.add('hidden');
+        });
+    }
+    
+    // Уведомление о повышении ранга
+    const rankUpNotification = document.getElementById('rankUpNotification');
+    const rankUpTitle = document.getElementById('rankUpTitle');
+    
+    window.addEventListener('rankUp', (event) => {
+        const { rank, title } = event.detail;
+        
+        if (rankUpTitle) {
+            rankUpTitle.textContent = title;
+        }
+        
+        if (rankUpNotification) {
+            rankUpNotification.classList.remove('hidden');
+            
+            // Скрываем через 1 секунду
+            setTimeout(() => {
+                rankUpNotification.classList.add('hidden');
+            }, 1000);
+        }
+    });
+    
     
     // Кнопка сброса GamePush
     const resetGPBtn = document.getElementById('resetGPBtn');
@@ -97,8 +262,18 @@ async function init() {
                 // Сбрасываем все локально
                 world.bestScore = 0;
                 world.level = 1;
+                world.coins = 0;
+                world.score = 0;
+                world.rank = 1;
+                world.kills = 0;
+                world.deaths = 0;
                 localStorage.removeItem('bestScore');
                 localStorage.removeItem('level');
+                localStorage.removeItem('coins');
+                localStorage.removeItem('score');
+                localStorage.removeItem('rank');
+                localStorage.removeItem('kills');
+                localStorage.removeItem('deaths');
                 
                 // Перезагружаем страницу для чистого старта
                 window.location.reload();
@@ -108,13 +283,24 @@ async function init() {
         });
     }
     
-    // Инициализация GamePush и загрузка лучшего счета и уровня
+    // Инициализация GamePush и загрузка данных
     await initStorage();
     world.bestScore = await loadBestScore();
     world.level = await loadLevel();
+    world.coins = await loadCoins();
+    
+    // Загружаем статистику игрока (rank, score, kills, deaths)
+    const stats = await loadPlayerStats();
+    world.score = stats.score;
+    world.rank = stats.rank;
+    world.kills = stats.kills;
+    world.deaths = stats.deaths;
+    
     previousLevel = world.level; // Запоминаем начальный уровень
     ui.updateBestScore(world.bestScore);
     ui.updateLevel(world.level);
+    ui.updateCoins(world.coins);
+    ui.updateRank(world.rank, world.score);
     
     // Создание пулов
     bulletPool = new BulletPool();
@@ -124,6 +310,12 @@ async function init() {
     world.enemies = enemyPool;
     world.pickups = pickupPool;
     
+    // Создание профиля
+    profile = new Profile();
+    
+    // Инициализируем UI купленных улучшений (после создания профиля!)
+    updatePurchasedUpgradesUI();
+    
     // Создание менеджера улучшений
     upgradeManager = new UpgradeManager(world);
     world.upgradeManager = upgradeManager;
@@ -131,6 +323,9 @@ async function init() {
     // Создание игровых объектов
     player = new Player(bulletPool, upgradeManager);
     world.player = player;
+    
+    // Применяем купленные улучшения к игроку
+    profile.applyUpgrades(player, CONFIG, SHOP_ITEMS);
     
     spawner = new Spawner(enemyPool, world);
     collisionSystem = new CollisionSystem(world);
@@ -144,8 +339,9 @@ async function init() {
         if (recordBeatenThisSession) {
             saveLocalBestScore(world.bestScore);
         }
-        // Сохраняем текущий уровень
+        // Сохраняем текущий уровень и монеты
         saveLocalLevel(world.level);
+        saveLocalCoins(world.coins);
     });
     
     // Сохранение ЛОКАЛЬНО при потере фокуса (переключение вкладок)
@@ -154,8 +350,9 @@ async function init() {
         if (recordBeatenThisSession) {
             saveLocalBestScore(world.bestScore);
         }
-        // Сохраняем текущий уровень
+        // Сохраняем текущий уровень и монеты
         saveLocalLevel(world.level);
+        saveLocalCoins(world.coins);
     });
     
     console.log('Game initialized, starting loop...');
@@ -205,9 +402,29 @@ function update(dt) {
     collisionSystem.update();
     
     // 8. Обновление UI
-    ui.updateScore(world.score);
+    ui.updateScore(world.sessionScore);
     ui.updateLevel(world.level);
     ui.updateWaves(world.currentLevelWaves, spawner.getWavesForLevel(world.level));
+    ui.updateCoins(world.coins);
+    
+    // 8.1. Обновление ранга
+    const previousRank = world.rank;
+    const currentTotalScore = world.score + world.sessionScore; // общий score + текущая сессия
+    const rankInfo = getRankFromXP(currentTotalScore);
+    world.rank = rankInfo.rank;
+    
+    // Проверяем повышение ранга
+    if (world.rank > previousRank) {
+        // Уведомление о повышении ранга
+        window.dispatchEvent(new CustomEvent('rankUp', { 
+            detail: { 
+                rank: world.rank,
+                title: getRankTitle(world.rank)
+            } 
+        }));
+    }
+    
+    ui.updateRank(world.rank, currentTotalScore);
     
     // Проверка повышения уровня и сохранение ЛОКАЛЬНО
     if (world.level > previousLevel) {
@@ -293,10 +510,10 @@ function handleGameOver() {
     if (gameOverHandled) return;
     gameOverHandled = true;
     
-    console.log('Game Over! Score:', world.score);
+    console.log('Game Over! Score:', world.sessionScore);
     
     // СРАЗУ показываем экран проигрыша (UX-дружелюбно)
-    ui.showLoseScreen(world.score, world.bestScore);
+    ui.showLoseScreen(world.sessionScore, world.bestScore);
     
     // Сохраняем в GamePush "за кулисами" если рекорд был побит
     if (recordBeatenThisSession) {
@@ -321,6 +538,35 @@ function handleGameOver() {
         // Сбрасываем флаг
         levelUpThisSession = false;
     }
+    
+    // Всегда сохраняем монеты при окончании игры
+    saveCoins(world.coins).then(() => {
+        console.log('Coins saved to GamePush:', world.coins);
+    }).catch(err => {
+        console.error('Failed to save coins to GamePush:', err);
+    });
+    
+    // Добавляем XP за сессию к общему score и увеличиваем deaths
+    world.score += world.sessionScore; // Добавляем sessionScore к общему score
+    world.deaths++; // Увеличиваем счетчик смертей
+    
+    // Пересчитываем ранг
+    const rankInfo = getRankFromXP(world.score);
+    world.rank = rankInfo.rank;
+    
+    // Сохраняем статистику
+    const stats = {
+        score: world.score,
+        rank: world.rank,
+        kills: world.kills,
+        deaths: world.deaths
+    };
+    
+    savePlayerStats(stats).then(() => {
+        console.log('Player stats saved to GamePush:', stats);
+    }).catch(err => {
+        console.error('Failed to save player stats to GamePush:', err);
+    });
 }
 
 function restart() {
@@ -360,7 +606,7 @@ function restart() {
     resetInput();
     
     // Обновление UI
-    ui.updateScore(0);
+    ui.updateScore(world.sessionScore);
     ui.updateLevel(world.level);
     ui.updateWaves(0, spawner.getWavesForLevel(world.level));
     

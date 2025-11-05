@@ -1,5 +1,10 @@
 // Константы игры
 export const CONFIG = {
+    // Флаги
+    FLAGS: {
+        FIXED_DIFFICULTY: true, // Включить фиксированную сложность (без ускорения)
+    },
+    
     // Размеры арены (9:16 портретный режим)
     ARENA_WIDTH: 540,
     ARENA_HEIGHT: 960,
@@ -51,6 +56,9 @@ export const CONFIG = {
     // Очки
     POINTS_PER_KILL: 1,
     
+    // Монеты
+    COINS_PER_KILL: 1, // монет за убийство врага
+    
     // Визуальные эффекты
     ENEMY_GLOW: '#ff4444',
     PLAYER_GLOW: '#4CAF50',
@@ -68,5 +76,14 @@ export const CONFIG = {
     // Враги с повышенным HP (усложнения начинаются с 4-го уровня)
     LEVEL_4_HP_ENEMY_CHANCE: 0.3, // 30% шанс врага с 2 HP на уровне 4+
     LEVEL_6_HP_ENEMY_CHANCE: 0.1, // 10% шанс врага с 5 HP на уровне 6+
+    
+    // Параметры фиксированной сложности по уровням (для FLAGS.FIXED_DIFFICULTY)
+    LEVEL_PARAMS: {
+        1: { enemySpeed: 65, spawnDelay: 800 },
+        2: { enemySpeed: 70, spawnDelay: 750 },
+        3: { enemySpeed: 75, spawnDelay: 700 },
+        4: { enemySpeed: 85, spawnDelay: 650 },
+        // Для уровней выше 4 используем параметры 4-го уровня
+    },
 };
 

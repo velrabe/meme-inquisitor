@@ -49,8 +49,8 @@ class Enemy {
         }
     }
     
-    hit() {
-        this.hp--;
+    hit(damage = 1) {
+        this.hp -= damage;
         if (this.hp <= 0) {
             this.deactivate();
             return true; // Враг убит
