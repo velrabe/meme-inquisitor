@@ -14,7 +14,7 @@ import { initStorage, loadBestScore, saveLocalBestScore, saveBestScore, loadLeve
 import { UpgradeManager } from './upgrades/upgradeManager.js';
 import { PickupPool } from './upgrades/pickupPool.js';
 import { Profile } from './profile.js';
-import { SHOP_ITEMS } from './shop.js';
+import { SHOP_ITEMS, getUpgradeCost } from './shop.js';
 import { getRankFromXP, getRankTitle, getStarsForRank } from './rank.js';
 
 // Игровые системы
@@ -118,6 +118,9 @@ async function init() {
                 const currentLevel = profile.getUpgradeLevel(item.id);
                 const maxed = currentLevel >= item.maxLevel;
                 
+                // Вычисляем цену для следующего уровня (прогрессивная)
+                const cost = getUpgradeCost(item.baseCost, currentLevel);
+                
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'shop-item';
                 
@@ -128,7 +131,7 @@ async function init() {
                         <div class="shop-item-level">Уровень: ${currentLevel}/${item.maxLevel}</div>
                     </div>
                     <div class="shop-item-actions">
-                        <div class="shop-item-cost">💰 ${item.cost}</div>
+                        <div class="shop-item-cost">💰 ${cost}</div>
                         <button class="shop-buy-btn" data-item-id="${item.id}" ${maxed ? 'disabled' : ''}>
                             ${maxed ? 'МАКС' : 'Купить'}
                         </button>
@@ -141,14 +144,18 @@ async function init() {
             // Добавляем обработчики на кнопки покупки
             const buyButtons = shopItemsContainer.querySelectorAll('.shop-buy-btn');
             buyButtons.forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', async () => {
                     const itemId = btn.getAttribute('data-item-id');
                     const item = SHOP_ITEMS.find(i => i.id === itemId);
                     
                     if (!item) return;
                     
+                    // Вычисляем текущую цену
+                    const currentLevel = profile.getUpgradeLevel(itemId);
+                    const cost = getUpgradeCost(item.baseCost, currentLevel);
+                    
                     // Пытаемся купить
-                    const success = profile.buyUpgrade(itemId, item.cost, world);
+                    const success = await profile.buyUpgrade(itemId, cost, world);
                     
                     if (success) {
                         // Сохраняем монеты
@@ -212,13 +219,16 @@ async function init() {
     function updateStatsModal() {
         if (statsRank) statsRank.textContent = world.rank;
         if (statsTitle) statsTitle.textContent = getRankTitle(world.rank);
-        if (statsTotalXP) statsTotalXP.textContent = (world.score || 0).toLocaleString();
+        // Показываем сумму сохраненного XP и XP за текущую сессию
+        const totalXP = (world.score || 0) + (world.sessionScore || 0);
+        if (statsTotalXP) statsTotalXP.textContent = totalXP.toLocaleString();
         if (statsKills) statsKills.textContent = (world.kills || 0).toLocaleString();
         if (statsDeaths) statsDeaths.textContent = (world.deaths || 0).toLocaleString();
     }
     
     if (rankSection) {
         rankSection.addEventListener('click', () => {
+            setState(GameState.PAUSED); // Ставим игру на паузу
             updateStatsModal();
             statsModal.classList.remove('hidden');
         });
@@ -226,6 +236,7 @@ async function init() {
     
     if (closeStatsBtn) {
         closeStatsBtn.addEventListener('click', () => {
+            setState(GameState.PLAYING); // Возобновляем игру
             statsModal.classList.add('hidden');
         });
     }
@@ -267,6 +278,12 @@ async function init() {
                 world.rank = 1;
                 world.kills = 0;
                 world.deaths = 0;
+                
+                // Сбрасываем все покупки в профиле
+                if (profile) {
+                    await profile.reset();
+                }
+                
                 localStorage.removeItem('bestScore');
                 localStorage.removeItem('level');
                 localStorage.removeItem('coins');
@@ -274,6 +291,7 @@ async function init() {
                 localStorage.removeItem('rank');
                 localStorage.removeItem('kills');
                 localStorage.removeItem('deaths');
+                localStorage.removeItem('shopPurchases');
                 
                 // Перезагружаем страницу для чистого старта
                 window.location.reload();
@@ -310,8 +328,9 @@ async function init() {
     world.enemies = enemyPool;
     world.pickups = pickupPool;
     
-    // Создание профиля
+    // Создание профиля и загрузка покупок
     profile = new Profile();
+    await profile.load(); // Загружаем покупки из localStorage и GamePush
     
     // Инициализируем UI купленных улучшений (после создания профиля!)
     updatePurchasedUpgradesUI();
@@ -328,6 +347,7 @@ async function init() {
     profile.applyUpgrades(player, CONFIG, SHOP_ITEMS);
     
     spawner = new Spawner(enemyPool, world);
+    world.spawner = spawner; // Сохраняем ссылку для доступа из других систем
     collisionSystem = new CollisionSystem(world);
     
     // Старт игры
@@ -342,6 +362,11 @@ async function init() {
         // Сохраняем текущий уровень и монеты
         saveLocalLevel(world.level);
         saveLocalCoins(world.coins);
+        
+        // Сохраняем покупки локально (синхронизация с cloud при следующей загрузке)
+        if (profile) {
+            profile.save();
+        }
     });
     
     // Сохранение ЛОКАЛЬНО при потере фокуса (переключение вкладок)
@@ -353,6 +378,11 @@ async function init() {
         // Сохраняем текущий уровень и монеты
         saveLocalLevel(world.level);
         saveLocalCoins(world.coins);
+        
+        // Сохраняем покупки локально (синхронизация с cloud при следующей загрузке)
+        if (profile) {
+            profile.save();
+        }
     });
     
     console.log('Game initialized, starting loop...');
@@ -567,6 +597,15 @@ function handleGameOver() {
     }).catch(err => {
         console.error('Failed to save player stats to GamePush:', err);
     });
+    
+    // Синхронизируем покупки с cloud при game over
+    if (profile) {
+        profile.syncToGamePush().then(() => {
+            console.log('Shop upgrades synced to GamePush');
+        }).catch(err => {
+            console.error('Failed to sync upgrades to GamePush:', err);
+        });
+    }
 }
 
 function restart() {

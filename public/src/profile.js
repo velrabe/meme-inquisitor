@@ -3,18 +3,63 @@
 export class Profile {
     constructor() {
         this.purchases = {}; // { upgradeId: level }
-        this.load();
     }
     
-    // Загрузка покупок из localStorage
-    load() {
+    // Загрузка покупок из localStorage и GamePush
+    async load() {
+        // Сначала загружаем из localStorage
         const saved = localStorage.getItem('shopPurchases');
         if (saved) {
             try {
                 this.purchases = JSON.parse(saved);
             } catch (err) {
-                console.error('Failed to load purchases:', err);
+                console.error('Failed to load purchases from localStorage:', err);
                 this.purchases = {};
+            }
+        }
+        
+        // Загружаем из GamePush если доступен
+        if (window.gp && window.gp.player) {
+            try {
+                await window.gp.player.ready;
+                
+                const cloudUpgrades = window.gp.player.get('upgrades');
+                if (cloudUpgrades) {
+                    try {
+                        const cloudPurchases = JSON.parse(cloudUpgrades);
+                        let hasChanges = false;
+                        
+                        // Мержим: берем максимальный уровень для каждого апгрейда
+                        for (const upgradeId in cloudPurchases) {
+                            const cloudLevel = cloudPurchases[upgradeId] || 0;
+                            const localLevel = this.purchases[upgradeId] || 0;
+                            if (cloudLevel > localLevel) {
+                                this.purchases[upgradeId] = cloudLevel;
+                                hasChanges = true;
+                            }
+                        }
+                        
+                        // Также добавляем локальные апгрейды которых нет в облаке
+                        for (const upgradeId in this.purchases) {
+                            if (!cloudPurchases[upgradeId] && this.purchases[upgradeId] > 0) {
+                                hasChanges = true;
+                            }
+                        }
+                        
+                        // Сохраняем только если были изменения
+                        if (hasChanges) {
+                            this.save();
+                            await this.syncToGamePush();
+                        }
+                    } catch (err) {
+                        console.error('Failed to parse upgrades from GamePush:', err);
+                    }
+                } else if (Object.keys(this.purchases).length > 0) {
+                    // Если в cloud пусто, но локально есть - синхронизируем
+                    await this.syncToGamePush();
+                }
+            } catch (err) {
+                console.error('Failed to load upgrades from GamePush:', err);
             }
         }
     }
@@ -24,8 +69,25 @@ export class Profile {
         localStorage.setItem('shopPurchases', JSON.stringify(this.purchases));
     }
     
+    // Синхронизация с GamePush
+    async syncToGamePush() {
+        if (window.gp && window.gp.player) {
+            try {
+                await window.gp.player.ready;
+                
+                const upgradesString = JSON.stringify(this.purchases);
+                window.gp.player.set('upgrades', upgradesString);
+                
+                await window.gp.player.sync();
+                console.log('Upgrades synced to GamePush:', this.purchases);
+            } catch (err) {
+                console.error('Failed to sync upgrades to GamePush:', err);
+            }
+        }
+    }
+    
     // Покупка улучшения
-    buyUpgrade(upgradeId, cost, world) {
+    async buyUpgrade(upgradeId, cost, world) {
         // Проверяем хватает ли монет
         if (world.coins < cost) {
             return false;
@@ -40,8 +102,9 @@ export class Profile {
         }
         this.purchases[upgradeId]++;
         
-        // Сохраняем
+        // Сохраняем локально и в GamePush
         this.save();
+        await this.syncToGamePush();
         
         return true;
     }
@@ -90,9 +153,10 @@ export class Profile {
     }
     
     // Сброс всех покупок
-    reset() {
+    async reset() {
         this.purchases = {};
         this.save();
+        await this.syncToGamePush();
     }
 }
 

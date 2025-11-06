@@ -81,10 +81,10 @@ export async function loadLevel() {
                 // ВСЕГДА обновляем локальное хранилище максимальным значением
                 localStorage.setItem('level', maxLevel.toString());
                 
-                // Если локальный уровень больше облачного - сохраняем в GamePush
+                // Если локальный уровень больше облачного - помечаем для синхронизации
+                // (синхронизация произойдет при следующем сохранении)
                 if (localLevel > cloudLevelNum) {
-                    window.gp.player.set('level', localLevel);
-                    await window.gp.player.sync();
+                    // Не синхронизируем сразу, чтобы не создавать лишние запросы при загрузке
                 }
                 
                 return maxLevel;
@@ -152,10 +152,10 @@ export async function loadBestScore() {
                 // ВСЕГДА обновляем локальное хранилище максимальным значением
                 localStorage.setItem('bestScore', maxScore.toString());
                 
-                // Если локальный счет больше облачного - сохраняем в GamePush
+                // Если локальный счет больше облачного - помечаем для синхронизации
+                // (синхронизация произойдет при следующем сохранении)
                 if (localBestScore > cloudScore) {
-                    window.gp.player.set('best_score', localBestScore);
-                    await window.gp.player.sync();
+                    // Не синхронизируем сразу, чтобы не создавать лишние запросы при загрузке
                 }
                 
                 return maxScore;
@@ -237,10 +237,10 @@ export async function loadCoins() {
                 // Обновляем локальное хранилище
                 localStorage.setItem('coins', maxCoins.toString());
                 
-                // Если локальные монеты больше - сохраняем в GamePush
+                // Если локальные монеты больше - помечаем для синхронизации
+                // (синхронизация произойдет при следующем сохранении)
                 if (localCoinsValue > cloudCoinsValue) {
-                    window.gp.player.set('coins', localCoinsValue);
-                    await window.gp.player.sync();
+                    // Не синхронизируем сразу, чтобы не создавать лишние запросы при загрузке
                 }
                 
                 return maxCoins;
@@ -324,13 +324,10 @@ export async function loadPlayerStats() {
             localStorage.setItem('kills', stats.kills.toString());
             localStorage.setItem('deaths', stats.deaths.toString());
             
-            // Если локальные больше - обновляем cloud
+            // Если локальные больше - помечаем для синхронизации
+            // (синхронизация произойдет при следующем сохранении)
             if (stats.score > cloudScore || stats.rank > cloudRank || stats.kills > cloudKills || stats.deaths > cloudDeaths) {
-                window.gp.player.set('score', stats.score);
-                window.gp.player.set('rank', stats.rank);
-                window.gp.player.set('kills', stats.kills);
-                window.gp.player.set('deaths', stats.deaths);
-                await window.gp.player.sync();
+                // Не синхронизируем сразу, чтобы не создавать лишние запросы при загрузке
             }
         } catch (err) {
             console.error('Failed to sync player stats with GamePush:', err);
@@ -389,6 +386,7 @@ export async function resetGamePush() {
         window.gp.player.set('rank', 1);
         window.gp.player.set('kills', 0);
         window.gp.player.set('deaths', 0);
+        window.gp.player.set('upgrades', '{}'); // Очищаем все купленные апгрейды
         
         // Синхронизируем сброс
         await window.gp.player.sync();
@@ -401,6 +399,7 @@ export async function resetGamePush() {
         localStorage.removeItem('rank');
         localStorage.removeItem('kills');
         localStorage.removeItem('deaths');
+        localStorage.removeItem('shopPurchases'); // Очищаем покупки из магазина
         
         return true;
         

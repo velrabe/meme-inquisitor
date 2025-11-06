@@ -19,6 +19,34 @@ export class Spawner {
         this.depthCounter = 1000; // начальная глубина (большое число)
         this.lastSpawnByColumn = new Map(); // column -> timestamp
         this.fastEnemyWaveCounter = 0; // счетчик для быстрых врагов
+        this.bossSpawned = false; // флаг спавна босса для текущего уровня
+        this.activeBosses = []; // массив активных боссов
+        this.bossesKilled = 0; // сколько боссов убито на текущем уровне
+        this.totalBossesForLevel = 0; // сколько всего боссов должно быть на уровне
+    }
+    
+    // Получить конфигурацию боссов для уровня
+    getBossConfig(level) {
+        // Если есть точная конфигурация - используем её
+        if (CONFIG.BOSS_CONFIGS[level]) {
+            return CONFIG.BOSS_CONFIGS[level];
+        }
+        
+        // Для уровней выше 8 используем паттерн на основе тиров
+        // Находим подходящий тир
+        const tier = CONFIG.BOSS_TIERS.find(t => level >= t.minLevel && level <= t.maxLevel);
+        
+        if (tier) {
+            // Количество боссов циклически: 1, 2, 3, 1, 2, 3...
+            const tierStartLevel = tier.minLevel;
+            const levelInTier = level - tierStartLevel;
+            const count = (levelInTier % 3) + 1; // 1, 2, 3, 1, 2, 3...
+            
+            return { count, hp: tier.baseHP };
+        }
+        
+        // Fallback - один босс с большим HP
+        return { count: 1, hp: 1000 };
     }
     
     // Получить параметры сложности для текущего уровня
@@ -57,12 +85,78 @@ export class Spawner {
     updateLevel() {
         const requiredWaves = this.getWavesForLevel(this.world.level);
         if (this.world.currentLevelWaves >= requiredWaves) {
-            this.world.level++;
-            this.world.currentLevelWaves = 0;
-            console.log(`Level Up! Now at level ${this.world.level}`);
+            // Спавним босса если еще не заспавнен
+            if (!this.bossSpawned) {
+                this.spawnBoss();
+                this.bossSpawned = true;
+                console.log(`Level ${this.world.level} completed! Boss spawned.`);
+            }
+        }
+    }
+    
+    // Уведомление об убийстве босса
+    onBossKilled() {
+        this.bossesKilled++;
+        
+        // Проверяем, все ли боссы убиты
+        if (this.bossesKilled >= this.totalBossesForLevel) {
+            // Все боссы убиты - переходим на следующий уровень
+            this.advanceToNextLevel();
+        }
+    }
+    
+    // Переход на следующий уровень (вызывается когда все боссы убиты)
+    advanceToNextLevel() {
+        this.world.level++;
+        this.world.currentLevelWaves = 0;
+        this.bossSpawned = false;
+        this.activeBosses = [];
+        this.bossesKilled = 0;
+        this.totalBossesForLevel = 0;
+        console.log(`Level Up! Now at level ${this.world.level}`);
+        
+        // Уведомляем об изменении уровня (для модального окна)
+        window.dispatchEvent(new CustomEvent('levelUp', { detail: { level: this.world.level } }));
+    }
+    
+    // Спавн боссов для текущего уровня
+    spawnBoss() {
+        const config = this.getBossConfig(this.world.level);
+        const { count, hp } = config;
+        
+        this.totalBossesForLevel = count;
+        this.bossesKilled = 0;
+        this.activeBosses = [];
+        
+        console.log(`Spawning ${count} boss(es) for level ${this.world.level} with ${hp} HP each`);
+        
+        const { w } = getSize();
+        
+        // Спавним боссов с распределением по горизонтали
+        for (let i = 0; i < count; i++) {
+            let x;
             
-            // Уведомляем об изменении уровня (для модального окна)
-            window.dispatchEvent(new CustomEvent('levelUp', { detail: { level: this.world.level } }));
+            if (count === 1) {
+                // Один босс - в центре
+                x = w / 2;
+            } else if (count === 2) {
+                // Два босса - по краям от центра
+                x = i === 0 ? w / 3 : (2 * w / 3);
+            } else if (count === 3) {
+                // Три босса - слева, центр, справа
+                x = i === 0 ? w / 4 : (i === 1 ? w / 2 : (3 * w / 4));
+            } else {
+                // Больше 3 - распределяем равномерно
+                x = (w / (count + 1)) * (i + 1);
+            }
+            
+            const y = -CONFIG.BOSS_RADIUS - (i * 50); // Небольшое вертикальное смещение
+            
+            const boss = this.enemyPool.spawn(x, y, CONFIG.BOSS_SPEED, 1000 - i, hp, false, true);
+            
+            if (boss) {
+                this.activeBosses.push(boss);
+            }
         }
     }
     

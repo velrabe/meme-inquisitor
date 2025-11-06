@@ -92,9 +92,22 @@ export const UPGRADES = {
             const dx = e.x - x;
             // Проверяем коллизию с учетом радиуса врага
             if (Math.abs(dx) < (12 + e.radius) && e.y < world.player.y && e.y > y0) {
-              const killed = e.hit(); // используем правильный метод
+              // Урон зависит от типа врага (боссы получают меньше урона от лазера)
+              const baseDamage = dt * 60; // базовый урон лазера за секунду
+              const damage = e.isBoss ? baseDamage * CONFIG.BOSS_LASER_DAMAGE_MULT : baseDamage;
+              
+              const killed = e.hit(damage);
               if (killed) {
-                world.score += CONFIG.POINTS_PER_KILL; // используем константу
+                world.sessionScore += CONFIG.POINTS_PER_KILL;
+                world.coins += CONFIG.COINS_PER_KILL;
+                world.kills++;
+                
+                // Если это был босс - уведомляем spawner
+                if (e.isBoss) {
+                  if (world.spawner) {
+                    world.spawner.onBossKilled();
+                  }
+                }
               }
             }
           }

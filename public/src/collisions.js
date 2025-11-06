@@ -32,6 +32,14 @@ export class CollisionSystem {
                         this.world.sessionScore += CONFIG.POINTS_PER_KILL;
                         this.world.coins += CONFIG.COINS_PER_KILL;
                         this.world.kills++;
+                        
+                        // Если это был босс - уведомляем spawner
+                        if (enemy.isBoss) {
+                            // Уведомляем spawner об убийстве босса
+                            if (this.world.spawner) {
+                                this.world.spawner.onBossKilled();
+                            }
+                        }
                     }
                     
                     // Вызываем хук для обработки попадания (пирсинг и т.п.)

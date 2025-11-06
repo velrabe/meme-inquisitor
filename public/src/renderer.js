@@ -311,49 +311,100 @@ export function drawChain(x, y, radius, chainAngle) {
 }
 
 export function drawEnemy(enemy) {
-    const { x, y, radius, animationFrame, hp, maxHp, isFast } = enemy;
+    const { x, y, radius, animationFrame, hp, maxHp, isFast, isBoss } = enemy;
     
-    // Выбираем нужное изображение в зависимости от типа врага
-    const enemyImg = isFast ? fastEnemyImage : enemyImage;
-    
-    if (imagesLoaded && enemyImg) {
-        const size = radius * 2;
+    // Боссы отображаются особенно
+    if (isBoss) {
+        // Рисуем свечение для босса
+        const gradient = ctx.createRadialGradient(x, y, radius * 0.5, x, y, radius * 1.5);
+        gradient.addColorStop(0, 'rgba(255, 0, 0, 0.3)');
+        gradient.addColorStop(0.5, 'rgba(255, 0, 0, 0.2)');
+        gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 1.5, 0, Math.PI * 2);
+        ctx.fill();
         
-        // Анимированный спрайтшит - используем animationFrame для выбора кадра
-        const frameWidth = enemyImg.width / CONFIG.ENEMY_ANIMATION_FRAMES;
-        const frameHeight = enemyImg.height;
-        const sourceX = animationFrame * frameWidth;
-        
-        // Рисуем один анимированный спрайт
-        ctx.drawImage(
-            enemyImg,
-            sourceX, 0, frameWidth, frameHeight, // источник (sx, sy, sw, sh)
-            x - radius, y - radius, size, size   // назначение (dx, dy, dw, dh)
-        );
+        if (imagesLoaded && enemyImage) {
+            const size = radius * 2;
+            
+            // Используем обычный спрайт врага, но увеличенный
+            const frameWidth = enemyImage.width / CONFIG.ENEMY_ANIMATION_FRAMES;
+            const frameHeight = enemyImage.height;
+            const sourceX = animationFrame * frameWidth;
+            
+            // Рисуем с красным оттенком
+            ctx.save();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(
+                enemyImage,
+                sourceX, 0, frameWidth, frameHeight,
+                x - radius, y - radius, size, size
+            );
+            
+            // Добавляем красный оттенок
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.fillStyle = 'rgba(255, 100, 100, 0.5)';
+            ctx.fillRect(x - radius, y - radius, size, size);
+            ctx.restore();
+        } else {
+            // Fallback - большой красный круг
+            ctx.fillStyle = '#FF0000';
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Пульсация
+            const animScale = 1 + Math.sin(Date.now() * 0.003) * 0.1;
+            ctx.fillStyle = `rgba(255, 0, 0, ${0.5 + Math.sin(Date.now() * 0.005) * 0.3})`;
+            ctx.beginPath();
+            ctx.arc(x, y, radius * animScale, 0, Math.PI * 2);
+            ctx.fill();
+        }
     } else {
-        // Fallback с анимацией
-        ctx.fillStyle = isFast ? '#ff0000' : '#ff4444';
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fill();
+        // Обычные враги
+        // Выбираем нужное изображение в зависимости от типа врага
+        const enemyImg = isFast ? fastEnemyImage : enemyImage;
         
-        // Простая анимация - изменение размера
-        const animScale = 1 + Math.sin(animationFrame * 0.5) * 0.1;
-        ctx.fillStyle = isFast ? `rgba(255, 0, 0, ${0.7 + Math.sin(animationFrame * 0.3) * 0.3})` : `rgba(255, 68, 68, ${0.7 + Math.sin(animationFrame * 0.3) * 0.3})`;
-        ctx.beginPath();
-        ctx.arc(x, y, radius * animScale, 0, Math.PI * 2);
-        ctx.fill();
+        if (imagesLoaded && enemyImg) {
+            const size = radius * 2;
+            
+            // Анимированный спрайтшит - используем animationFrame для выбора кадра
+            const frameWidth = enemyImg.width / CONFIG.ENEMY_ANIMATION_FRAMES;
+            const frameHeight = enemyImg.height;
+            const sourceX = animationFrame * frameWidth;
+            
+            // Рисуем один анимированный спрайт
+            ctx.drawImage(
+                enemyImg,
+                sourceX, 0, frameWidth, frameHeight, // источник (sx, sy, sw, sh)
+                x - radius, y - radius, size, size   // назначение (dx, dy, dw, dh)
+            );
+        } else {
+            // Fallback с анимацией
+            ctx.fillStyle = isFast ? '#ff0000' : '#ff4444';
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Простая анимация - изменение размера
+            const animScale = 1 + Math.sin(animationFrame * 0.5) * 0.1;
+            ctx.fillStyle = isFast ? `rgba(255, 0, 0, ${0.7 + Math.sin(animationFrame * 0.3) * 0.3})` : `rgba(255, 68, 68, ${0.7 + Math.sin(animationFrame * 0.3) * 0.3})`;
+            ctx.beginPath();
+            ctx.arc(x, y, radius * animScale, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
     
-    // HP индикатор (если нужно больше 1 HP)
-    if (maxHp > 1) {
+    // HP индикатор (если босс или нужно больше 1 HP)
+    if (isBoss || maxHp > 1) {
         const barWidth = radius * 2;
-        const barHeight = 5;
+        const barHeight = isBoss ? 10 : 5; // Боссы имеют более толстую полоску HP
         const barX = x - radius;
-        const barY = y + radius + 5;
+        const barY = y + radius + (isBoss ? 10 : 5);
         
         // Фон полоски HP
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillStyle = isBoss ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.5)';
         ctx.fillRect(barX, barY, barWidth, barHeight);
         
         // Текущее HP
@@ -362,9 +413,29 @@ export function drawEnemy(enemy) {
         ctx.fillRect(barX, barY, hpWidth, barHeight);
         
         // Обводка
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = isBoss ? 'rgba(255, 215, 0, 1)' : 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = isBoss ? 2 : 1;
         ctx.strokeRect(barX, barY, barWidth, barHeight);
+        
+        // Для босса - показываем цифры HP
+        if (isBoss) {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+            ctx.strokeText(`${hp} / ${maxHp}`, x, barY + barHeight + 5);
+            ctx.fillText(`${hp} / ${maxHp}`, x, barY + barHeight + 5);
+            
+            // Надпись "BOSS"
+            ctx.font = 'bold 16px Arial';
+            ctx.fillStyle = '#FF0000';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 4;
+            ctx.strokeText('BOSS', x, y - radius - 15);
+            ctx.fillText('BOSS', x, y - radius - 15);
+        }
     }
 }
 

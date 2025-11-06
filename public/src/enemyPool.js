@@ -11,6 +11,7 @@ class Enemy {
         this.hp = CONFIG.ENEMY_HP;
         this.maxHp = CONFIG.ENEMY_HP; // для отображения полоски HP
         this.isFast = false; // быстрый враг
+        this.isBoss = false; // босс
         this.id = Math.random(); // уникальный ID для стабильной сортировки
         
         // Анимация
@@ -20,7 +21,7 @@ class Enemy {
         this.animationFrames = CONFIG.ENEMY_ANIMATION_FRAMES;
     }
     
-    activate(x, y, speed, depth = 0, hp = CONFIG.ENEMY_HP, isFast = false) {
+    activate(x, y, speed, depth = 0, hp = CONFIG.ENEMY_HP, isFast = false, isBoss = false) {
         this.active = true;
         this.x = x;
         this.y = y;
@@ -28,7 +29,15 @@ class Enemy {
         this.hp = hp;
         this.maxHp = hp;
         this.isFast = isFast;
+        this.isBoss = isBoss;
         this.depth = depth; // глубина для z-index
+        
+        // Если босс - увеличиваем радиус
+        if (isBoss) {
+            this.radius = CONFIG.BOSS_RADIUS;
+        } else {
+            this.radius = CONFIG.ENEMY_RADIUS;
+        }
     }
     
     deactivate() {
@@ -67,12 +76,14 @@ export class EnemyPool {
         }
     }
     
-    spawn(x, y, speed, depth = 0, hp = CONFIG.ENEMY_HP, isFast = false) {
+    spawn(x, y, speed, depth = 0, hp = CONFIG.ENEMY_HP, isFast = false, isBoss = false) {
         // Ищем неактивного врага
         const enemy = this.pool.find(e => !e.active);
         if (enemy) {
-            enemy.activate(x, y, speed, depth, hp, isFast);
+            enemy.activate(x, y, speed, depth, hp, isFast, isBoss);
+            return enemy; // Возвращаем врага для дополнительной настройки
         }
+        return null;
     }
     
     update(dt) {

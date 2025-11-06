@@ -28,6 +28,36 @@ export const CONFIG = {
     ENEMY_POOL_SIZE: 50,
     ENEMY_HP: 1,
     
+    // Боссы
+    BOSS_SPEED: 30, // очень медленно
+    BOSS_SIZE: 200, // в 2 раза больше обычного врага
+    BOSS_RADIUS: 100, // в 2 раза больше обычного врага
+    BOSS_COLOR: '#FF0000', // красный цвет для босса
+    BOSS_GLOW: '#FF0000', // свечение босса
+    BOSS_LASER_DAMAGE_MULT: 0.2, // боссы получают только 20% урона от лазера
+    
+    // Конфигурация боссов по уровням
+    BOSS_CONFIGS: {
+        1: { count: 1, hp: 50 },
+        2: { count: 2, hp: 75 },
+        3: { count: 1, hp: 150 },
+        4: { count: 2, hp: 150 },
+        5: { count: 3, hp: 150 },
+        6: { count: 1, hp: 500 },
+        7: { count: 2, hp: 500 },
+        8: { count: 3, hp: 500 },
+        // Далее по паттерну для уровней 9+
+    },
+    
+    // Тиры боссов для автоматической генерации уровней 9+
+    BOSS_TIERS: [
+        { minLevel: 1, maxLevel: 2, baseHP: 50 },   // Тир 1: уровни 1-2
+        { minLevel: 3, maxLevel: 5, baseHP: 150 },  // Тир 2: уровни 3-5
+        { minLevel: 6, maxLevel: 8, baseHP: 500 },  // Тир 3: уровни 6-8
+        { minLevel: 9, maxLevel: 11, baseHP: 1000 }, // Тир 4: уровни 9-11
+        { minLevel: 12, maxLevel: 999, baseHP: 2000 }, // Тир 5: уровни 12+
+    ],
+    
     // Быстрые враги
     FAST_ENEMY_SPEED_MULTIPLIER: 1.5, // в 1.5 раза быстрее
     FAST_ENEMY_MIN_WAVE: 10, // не появляются первые 10-15 волн
