@@ -19,6 +19,9 @@ Thumbs.db
 dist/
 build/
 
+# Vite
+.vite/
+
 # Logs
 logs/
 *.log
@@ -30,4 +33,3 @@ logs/
 # Temporary files
 *.tmp
 .cache/
-

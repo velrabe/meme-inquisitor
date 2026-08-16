@@ -1,0 +1,17 @@
+export const LAYOUT = {
+  gameWidth: 540,
+  gameHeight: 960,
+  spawnY: 210,
+  playerY: 870,
+  barrierY: 730,
+  lossLineY: 790,
+  playableMinX: 70,
+  playableMaxX: 470,
+  farEnemyScale: 0.28,
+  nearEnemyScale: 1,
+  farEnemyAlpha: 0.5,
+  nearEnemyAlpha: 1,
+  playerDisplayWidth: 120,
+  playerMoveSpeed: 280,
+  projectileColor: 0xf6e27a,
+};
