@@ -38,7 +38,10 @@
 
 ## Assets and platform
 
-- Keep source assets under `public/assets`.
+- Keep master sources, compositions and unused variants under `source-assets`. Phaser does not load this folder, and Vite does not copy it into `dist`.
+- Keep only game-ready files under `public/assets`: optimized PNGs, atlases, backgrounds, audio, FX and UI.
+- Do not mix source PNGs, runtime PNGs and atlases in the same folder.
+- Create `public/assets/atlases/` only when the first real atlas `.png` and `.json` exist.
 - Use lowercase Latin kebab-case filenames without spaces.
 - Keep platform-specific APIs behind an adapter; gameplay code must not call GamePush directly.
 - Do not install or create Playwright, automated playtesting, testing agents or testing hooks unless the user explicitly requests them. The user performs gameplay testing manually.

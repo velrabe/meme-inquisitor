@@ -34,11 +34,11 @@ export class BootScene extends Phaser.Scene {
     }
 
     this.statusText = this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'Загрузка...', TITLE_STYLE)
+      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'Loading...', TITLE_STYLE)
       .setOrigin(0.5);
 
     this.boot().catch((error) => {
-      this.#fail('Не удалось запустить игру', [String(error)]);
+      this.#fail('Failed to start the game', [String(error)]);
     });
   }
 
@@ -69,7 +69,7 @@ export class BootScene extends Phaser.Scene {
       this.load.once('complete', () => {
         if (loadErrors.length > 0) {
           this.#fail(
-            'Ошибка загрузки ассетов',
+            'Failed to load assets',
             loadErrors.map((file) => file.key || file.src || file.url),
           );
           return;
@@ -85,17 +85,17 @@ export class BootScene extends Phaser.Scene {
       queueManifest(this.load, ASSET_MANIFEST);
       this.load.start();
     } catch (error) {
-      this.#fail('Не удалось запустить игру', [String(error)]);
+      this.#fail('Failed to start the game', [String(error)]);
     }
   }
 
   #finishBoot() {
     try {
       registerAnimations(this);
-      this.statusText.setText('Готово');
+      this.statusText.setText('Ready');
       this.scene.start(SCENE_KEYS.menu);
     } catch (error) {
-      this.#fail('Не удалось подготовить игру', [String(error)]);
+      this.#fail('Failed to prepare the game', [String(error)]);
     }
   }
 
@@ -120,7 +120,7 @@ export class BootScene extends Phaser.Scene {
       .text(
         GAME_WIDTH / 2,
         300,
-        list.length > 0 ? list.map((item) => `• ${item}`).join('\n') : 'Неизвестная ошибка',
+        list.length > 0 ? list.map((item) => `• ${item}`).join('\n') : 'Unknown error',
         BODY_STYLE,
       )
       .setOrigin(0.5, 0);

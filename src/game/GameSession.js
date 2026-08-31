@@ -36,7 +36,6 @@ export class GameSession {
       y: LAYOUT.playerY,
       minX: LAYOUT.playableMinX,
       maxX: LAYOUT.playableMaxX,
-      textureKey: 'player-cat-rifle-idle',
       weaponId: 'rifle',
     });
 
@@ -91,6 +90,7 @@ export class GameSession {
     this.remainingTime = Math.max(0, this.mission.duration - this.elapsedTime);
 
     this.inputSystem.update(dt);
+    this.player.update(dt);
     this.weaponSystem.update(dt);
     this.waveDirector.update(dt);
     this.enemySystem.update(dt);

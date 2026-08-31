@@ -37,18 +37,18 @@ export class ShopScene extends Phaser.Scene {
     this.activeTab = 'perks';
 
     this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x141418);
-    this.add.text(GAME_WIDTH / 2, 80, 'Магазин', TITLE_STYLE).setOrigin(0.5);
-    this.add.text(GAME_WIDTH / 2, 130, `Монеты ${profile.coins}`, COINS_STYLE).setOrigin(0.5);
+    this.add.text(GAME_WIDTH / 2, 80, 'Shop', TITLE_STYLE).setOrigin(0.5);
+    this.add.text(GAME_WIDTH / 2, 130, `Coins ${profile.coins}`, COINS_STYLE).setOrigin(0.5);
 
-    this.perkTab = this.#addTab(170, 200, 'Перки', () => this.#setTab('perks'));
-    this.skinTab = this.#addTab(370, 200, 'Скины', () => this.#setTab('skins'));
+    this.perkTab = this.#addTab(170, 200, 'Perks', () => this.#setTab('perks'));
+    this.skinTab = this.#addTab(370, 200, 'Skins', () => this.#setTab('skins'));
 
     this.content = this.add.container(GAME_WIDTH / 2, 520);
     this.contentBackground = this.add.rectangle(0, 0, 460, 420, 0x1c1c22).setStrokeStyle(1, 0x3a3a44);
     this.contentLabel = this.add.text(0, 0, '', EMPTY_STYLE).setOrigin(0.5);
     this.content.add([this.contentBackground, this.contentLabel]);
 
-    this.#addButton(GAME_WIDTH / 2, 880, 'Назад', () => {
+    this.#addButton(GAME_WIDTH / 2, 880, 'Back', () => {
       this.scene.start(SCENE_KEYS.menu);
     });
 
@@ -60,7 +60,7 @@ export class ShopScene extends Phaser.Scene {
     this.#paintTab(this.perkTab, tab === 'perks');
     this.#paintTab(this.skinTab, tab === 'skins');
     this.contentLabel.setText(
-      tab === 'perks' ? 'Перки появятся позже' : 'Скины появятся позже',
+      tab === 'perks' ? 'Perks coming later' : 'Skins coming later',
     );
   }
 

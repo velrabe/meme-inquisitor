@@ -38,23 +38,23 @@ export class ResultScene extends Phaser.Scene {
 
     this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x141418);
     this.add
-      .text(GAME_WIDTH / 2, 220, won ? 'Победа' : 'Поражение', TITLE_STYLE)
+      .text(GAME_WIDTH / 2, 220, won ? 'Victory' : 'Defeat', TITLE_STYLE)
       .setOrigin(0.5);
 
     this.add
       .text(
         GAME_WIDTH / 2,
         320,
-        `Счёт ${score}\nУбийства ${kills}\nВремя ${elapsed} с\nМонеты +${coins}`,
+        `Score ${score}\nKills ${kills}\nTime ${elapsed}s\nCoins +${coins}`,
         BODY_STYLE,
       )
       .setOrigin(0.5);
 
-    this.#addButton(GAME_WIDTH / 2, 520, 'Повторить', () => {
+    this.#addButton(GAME_WIDTH / 2, 520, 'Retry', () => {
       this.scene.start(SCENE_KEYS.game);
     });
 
-    this.#addButton(GAME_WIDTH / 2, 600, 'В меню', () => {
+    this.#addButton(GAME_WIDTH / 2, 600, 'Menu', () => {
       this.scene.start(SCENE_KEYS.menu);
     });
   }

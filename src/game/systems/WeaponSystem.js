@@ -20,6 +20,7 @@ export class WeaponSystem {
 
     const weapon = getWeaponType(this.player.weaponId);
     this.cooldown = weapon.fireInterval;
+    this.player.playRecoil(weapon.fireInterval * 1000);
     this.projectileSystem.spawnFromWeapon(this.player.muzzleX, this.player.muzzleY, weapon);
   }
 }

@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 import { Enemy } from '../entities/Enemy.js';
 import { getEnemyType } from '../data/enemyTypes.js';
 import { LAYOUT } from '../data/layout.js';
@@ -8,7 +9,7 @@ export class EnemySystem {
     this.enemies = [];
   }
 
-  spawn(typeId, x) {
+  spawn(typeId, lateralPosition) {
     const type = getEnemyType(typeId);
 
     if (!type) {
@@ -16,8 +17,7 @@ export class EnemySystem {
       return null;
     }
 
-    const clampedX = Math.min(LAYOUT.playableMaxX, Math.max(LAYOUT.playableMinX, x));
-    const enemy = new Enemy(this.scene, type, clampedX, LAYOUT.spawnY);
+    const enemy = new Enemy(this.scene, type, lateralPosition);
     this.enemies.push(enemy);
     return enemy;
   }
@@ -30,14 +30,29 @@ export class EnemySystem {
         continue;
       }
 
-      enemy.updatePosition(enemy.y + enemy.speed * dt);
-      const progress = (enemy.y - LAYOUT.spawnY) / travel;
-      enemy.setDepthProgress(progress);
+      if (!enemy.isDropping) {
+        const speedScale = Phaser.Math.Linear(
+          LAYOUT.farEnemySpeedScale,
+          LAYOUT.nearEnemySpeedScale,
+          Phaser.Math.Clamp(enemy.progress, 0, 1),
+        );
+        enemy.progress += (enemy.speed * speedScale * dt) / travel;
+      }
+
+      enemy.update(dt);
+      enemy.applyProjection();
+      enemy.setDepthProgress(enemy.progress);
     }
   }
 
   getActive() {
     return this.enemies.filter((enemy) => enemy.active);
+  }
+
+  getNearSpawnLaterals(maxProgress = 0.2) {
+    return this.enemies
+      .filter((enemy) => enemy.active && (enemy.isDropping || enemy.progress <= maxProgress))
+      .map((enemy) => enemy.lateralPosition);
   }
 
   cleanup() {

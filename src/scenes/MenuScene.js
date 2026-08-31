@@ -32,14 +32,14 @@ export class MenuScene extends Phaser.Scene {
 
     this.add.text(GAME_WIDTH / 2, 220, 'Meme Inquisitor', TITLE_STYLE).setOrigin(0.5);
     this.add
-      .text(GAME_WIDTH / 2, 290, `Монеты ${profile.coins}`, COINS_STYLE)
+      .text(GAME_WIDTH / 2, 290, `Coins ${profile.coins}`, COINS_STYLE)
       .setOrigin(0.5);
 
-    this.#addButton(GAME_WIDTH / 2, 430, 'Играть', () => {
+    this.#addButton(GAME_WIDTH / 2, 430, 'Play', () => {
       this.scene.start(SCENE_KEYS.game);
     });
 
-    this.#addButton(GAME_WIDTH / 2, 510, 'Магазин', () => {
+    this.#addButton(GAME_WIDTH / 2, 510, 'Shop', () => {
       this.scene.start(SCENE_KEYS.shop);
     });
 

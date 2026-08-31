@@ -13,8 +13,68 @@ export const IMAGE_ASSETS = [
   },
   {
     type: 'image',
+    key: 'player-cat-part-tail',
+    path: 'assets/player/cat-parts/tail.png',
+    required: true,
+  },
+  {
+    type: 'image',
+    key: 'player-cat-part-l-leg',
+    path: 'assets/player/cat-parts/l-leg.png',
+    required: true,
+  },
+  {
+    type: 'image',
+    key: 'player-cat-part-r-leg',
+    path: 'assets/player/cat-parts/r-leg.png',
+    required: true,
+  },
+  {
+    type: 'image',
+    key: 'player-cat-part-butt',
+    path: 'assets/player/cat-parts/butt.png',
+    required: true,
+  },
+  {
+    type: 'image',
+    key: 'player-cat-part-torso',
+    path: 'assets/player/cat-parts/torso.png',
+    required: true,
+  },
+  {
+    type: 'image',
     key: 'enemy-sahur-basic-idle',
     path: 'assets/enemies/sahur-basic-idle.png',
+    required: true,
+  },
+  {
+    type: 'image',
+    key: 'enemy-sahur-part-body',
+    path: 'assets/enemies/sahur-parts/body.png',
+    required: true,
+  },
+  {
+    type: 'image',
+    key: 'enemy-sahur-part-l-hand',
+    path: 'assets/enemies/sahur-parts/l-hand.png',
+    required: true,
+  },
+  {
+    type: 'image',
+    key: 'enemy-sahur-part-r-hand',
+    path: 'assets/enemies/sahur-parts/r-hand.png',
+    required: true,
+  },
+  {
+    type: 'image',
+    key: 'enemy-sahur-part-l-leg',
+    path: 'assets/enemies/sahur-parts/l-leg.png',
+    required: true,
+  },
+  {
+    type: 'image',
+    key: 'enemy-sahur-part-r-leg',
+    path: 'assets/enemies/sahur-parts/r-leg.png',
     required: true,
   },
   {

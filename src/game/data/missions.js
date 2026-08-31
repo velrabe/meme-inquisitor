@@ -1,4 +1,36 @@
 const BASIC = 'basic';
+const WAVE_TIME_SCALE = 0.2;
+const WAVE_SPAWN_SCALE = 1;
+
+const ROOFTOP_WAVES = [
+  { time: 2, spawns: [{ typeId: BASIC }] },
+  { time: 6, spawns: [{ typeId: BASIC }] },
+  { time: 10, spawns: [{ typeId: BASIC }] },
+  { time: 14, spawns: [{ typeId: BASIC }] },
+  { time: 18, spawns: [{ typeId: BASIC }] },
+  { time: 22, spawns: [{ typeId: BASIC }] },
+  { time: 22.8, spawns: [{ typeId: BASIC }] },
+  { time: 27, spawns: [{ typeId: BASIC }, { typeId: BASIC }] },
+  { time: 32, spawns: [{ typeId: BASIC }] },
+  { time: 36, spawns: [{ typeId: BASIC }] },
+  { time: 40, spawns: [{ typeId: BASIC }] },
+  { time: 44, spawns: [{ typeId: BASIC }] },
+  { time: 47, spawns: [{ typeId: BASIC }] },
+  { time: 51, spawns: [{ typeId: BASIC }, { typeId: BASIC }] },
+  { time: 55, spawns: [{ typeId: BASIC }] },
+  { time: 58, spawns: [{ typeId: BASIC }] },
+  { time: 61, spawns: [{ typeId: BASIC }] },
+  { time: 64, spawns: [{ typeId: BASIC }] },
+  { time: 67, spawns: [{ typeId: BASIC }, { typeId: BASIC }] },
+  { time: 70, spawns: [{ typeId: BASIC }] },
+  { time: 71, spawns: [{ typeId: BASIC }] },
+  { time: 72, spawns: [{ typeId: BASIC }] },
+  { time: 73, spawns: [{ typeId: BASIC }] },
+  { time: 74, spawns: [{ typeId: BASIC }, { typeId: BASIC }] },
+  { time: 75, spawns: [{ typeId: BASIC }] },
+  { time: 76, spawns: [{ typeId: BASIC }] },
+  { time: 76, spawns: [{ typeId: BASIC }] },
+];
 
 export const MISSIONS = {
   'rooftop-1': {
@@ -7,35 +39,13 @@ export const MISSIONS = {
     backgroundKey: 'background-rooftop-night',
     barrierDurability: 3,
     enemyTypes: [BASIC],
-    waves: [
-      { time: 2, spawns: [{ typeId: BASIC, x: 270 }] },
-      { time: 6, spawns: [{ typeId: BASIC, x: 170 }] },
-      { time: 10, spawns: [{ typeId: BASIC, x: 370 }] },
-      { time: 14, spawns: [{ typeId: BASIC, x: 220 }] },
-      { time: 18, spawns: [{ typeId: BASIC, x: 320 }] },
-      { time: 22, spawns: [{ typeId: BASIC, x: 270 }] },
-      { time: 22.8, spawns: [{ typeId: BASIC, x: 270 }] },
-      { time: 27, spawns: [{ typeId: BASIC, x: 150 }, { typeId: BASIC, x: 390 }] },
-      { time: 32, spawns: [{ typeId: BASIC, x: 200 }] },
-      { time: 36, spawns: [{ typeId: BASIC, x: 340 }] },
-      { time: 40, spawns: [{ typeId: BASIC, x: 270 }] },
-      { time: 44, spawns: [{ typeId: BASIC, x: 180 }] },
-      { time: 47, spawns: [{ typeId: BASIC, x: 360 }] },
-      { time: 51, spawns: [{ typeId: BASIC, x: 230 }, { typeId: BASIC, x: 310 }] },
-      { time: 55, spawns: [{ typeId: BASIC, x: 270 }] },
-      { time: 58, spawns: [{ typeId: BASIC, x: 160 }] },
-      { time: 61, spawns: [{ typeId: BASIC, x: 380 }] },
-      { time: 64, spawns: [{ typeId: BASIC, x: 270 }] },
-      { time: 67, spawns: [{ typeId: BASIC, x: 190 }, { typeId: BASIC, x: 350 }] },
-      { time: 70, spawns: [{ typeId: BASIC, x: 240 }] },
-      { time: 71, spawns: [{ typeId: BASIC, x: 370 }] },
-      { time: 72, spawns: [{ typeId: BASIC, x: 270 }] },
-      { time: 73, spawns: [{ typeId: BASIC, x: 300 }] },
-      { time: 74, spawns: [{ typeId: BASIC, x: 210 }, { typeId: BASIC, x: 330 }] },
-      { time: 75, spawns: [{ typeId: BASIC, x: 150 }] },
-      { time: 76, spawns: [{ typeId: BASIC, x: 170 }] },
-      { time: 76, spawns: [{ typeId: BASIC, x: 390 }] },
-    ],
+    waves: ROOFTOP_WAVES.map((wave) => ({
+      ...wave,
+      time: wave.time * WAVE_TIME_SCALE,
+      spawns: wave.spawns.flatMap((spawn) =>
+        Array.from({ length: WAVE_SPAWN_SCALE }, () => spawn),
+      ),
+    })),
   },
 };
 
