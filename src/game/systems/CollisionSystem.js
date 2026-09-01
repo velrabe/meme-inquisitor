@@ -50,18 +50,24 @@ export class CollisionSystem {
         continue;
       }
 
-      if (!barrier.broken && this.#crossed(enemy.previousY, enemy.y, barrier.barrierY)) {
-        enemy.active = false;
-        enemy.destroyed = true;
-        barrier.takeHit();
-        this.session.notifyBarrierHit();
-        continue;
+      if (this.#crossed(enemy.previousY, enemy.y, barrier.barrierY)) {
+        const hitbox = enemy.getHitbox();
+        const block = barrier.findBlockForRange(hitbox.left, hitbox.right);
+
+        if (block && !block.broken) {
+          enemy.active = false;
+          enemy.destroyed = true;
+          barrier.takeHit(block);
+          this.session.notifyBarrierHit();
+          continue;
+        }
       }
 
-      if (barrier.broken && this.#crossed(enemy.previousY, enemy.y, barrier.lossLineY)) {
+      if (this.#crossed(enemy.previousY, enemy.y, barrier.lossLineY)) {
         enemy.active = false;
         enemy.destroyed = true;
         this.session.notifyLoss();
+        continue;
       }
     }
   }

@@ -24,7 +24,7 @@ export class Hud {
     const seconds = Math.ceil(Math.max(0, state.remainingTime));
     this.timeText.setText(`Time ${seconds}`);
     this.scoreText.setText(`${state.score}`);
-    this.barrierText.setText(`Barrier ${state.barrierDurability}/${state.barrierMax}`);
+    this.barrierText.setText(`Barrier ${state.barrierDurabilities.join('|')}`);
   }
 
   destroy() {

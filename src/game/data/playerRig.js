@@ -1,8 +1,8 @@
 export const PLAYER_FRAME_SIZE = 1500;
 
 export const PLAYER_WALK = {
-  cycleMs: 400,
-  stepAtMs: 140,
+  cycleMs: 200,
+  stepAtMs: 70,
 };
 
 export const PLAYER_RECOIL = {

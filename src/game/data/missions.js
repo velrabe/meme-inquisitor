@@ -37,7 +37,7 @@ export const MISSIONS = {
     id: 'rooftop-1',
     duration: 90,
     backgroundKey: 'background-rooftop-night',
-    barrierDurability: 3,
+    barrierDurability: 2,
     enemyTypes: [BASIC],
     waves: ROOFTOP_WAVES.map((wave) => ({
       ...wave,

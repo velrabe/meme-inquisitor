@@ -77,27 +77,18 @@ export const IMAGE_ASSETS = [
     path: 'assets/enemies/sahur-parts/r-leg.png',
     required: true,
   },
+];
+
+export const SPRITESHEET_ASSETS = [
   {
-    type: 'image',
-    key: 'barrier-block-intact',
-    path: 'assets/barrier/barrier-block-intact.png',
-    required: true,
-  },
-  {
-    type: 'image',
-    key: 'barrier-block-damaged',
-    path: 'assets/barrier/barrier-block-damaged.png',
-    required: true,
-  },
-  {
-    type: 'image',
-    key: 'barrier-block-broken',
-    path: 'assets/barrier/barrier-block-broken.png',
+    type: 'spritesheet',
+    key: 'barrier-block-states',
+    path: 'assets/barrier/barrier-block-states.png',
+    frameWidth: 350,
+    frameHeight: 180,
     required: true,
   },
 ];
-
-export const SPRITESHEET_ASSETS = [];
 
 export const MUSIC_ASSETS = [];
 

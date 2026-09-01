@@ -7,7 +7,7 @@ export const LAYOUT = {
   spawnDropFromY: 0,
   spawnDropDuration: 0.3,
   playerY: 950,
-  barrierY: 730,
+  barrierY: 750,
   lossLineY: 790,
   playableMinX: 70,
   playableMaxX: 470,

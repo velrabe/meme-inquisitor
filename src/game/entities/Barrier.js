@@ -1,7 +1,9 @@
-const TEXTURE_BY_STATE = {
-  intact: 'barrier-block-intact',
-  damaged: 'barrier-block-damaged',
-  broken: 'barrier-block-broken',
+const BARRIER_TEXTURE_KEY = 'barrier-block-states';
+
+const FRAME_BY_STATE = {
+  intact: 0,
+  damaged: 1,
+  broken: 2,
 };
 
 export class Barrier {
@@ -9,69 +11,102 @@ export class Barrier {
     this.scene = scene;
     this.barrierY = options.barrierY;
     this.lossLineY = options.lossLineY;
-    this.maxDurability = options.maxDurability;
-    this.currentDurability = options.maxDurability;
-    this.broken = false;
+    this.blockMaxDurability = options.maxDurability;
     this.blocks = [];
 
-    const blockCount = 3;
-    const blockWidth = options.blockWidth ?? 140;
-    const gap = options.gap ?? 12;
+    const blockCount = 4;
+    const gap = 0;
+    const blockWidth = options.blockWidth ?? options.gameWidth / blockCount;
     const totalWidth = blockCount * blockWidth + (blockCount - 1) * gap;
     const startX = (options.gameWidth - totalWidth) / 2 + blockWidth / 2;
 
     for (let index = 0; index < blockCount; index += 1) {
       const x = startX + index * (blockWidth + gap);
-      const sprite = scene.add.image(x, this.barrierY, TEXTURE_BY_STATE.intact);
+      const sprite = scene.add.image(x, this.barrierY, BARRIER_TEXTURE_KEY, FRAME_BY_STATE.intact);
+      const blockHeight = options.blockHeight ?? blockWidth * (sprite.height / sprite.width);
+
       sprite.setOrigin(0.5, 1);
-      sprite.setDisplaySize(blockWidth, options.blockHeight ?? 48);
+      sprite.setDisplaySize(blockWidth, blockHeight);
       sprite.setDepth(this.barrierY);
-      this.blocks.push(sprite);
+      this.blocks.push({
+        sprite,
+        x,
+        width: blockWidth,
+        currentDurability: this.blockMaxDurability,
+        broken: false,
+      });
     }
 
     this.#refreshVisuals();
   }
 
-  takeHit() {
-    if (this.broken) {
+  findBlockForRange(left, right) {
+    let bestMatch = null;
+    let bestOverlap = 0;
+
+    for (const block of this.blocks) {
+      const blockLeft = block.x - block.width / 2;
+      const blockRight = block.x + block.width / 2;
+      const overlap = Math.max(0, Math.min(right, blockRight) - Math.max(left, blockLeft));
+
+      if (overlap > bestOverlap) {
+        bestMatch = block;
+        bestOverlap = overlap;
+      }
+    }
+
+    return bestMatch;
+  }
+
+  takeHit(block) {
+    if (!block || block.broken) {
       return false;
     }
 
-    this.currentDurability = Math.max(0, this.currentDurability - 1);
-    this.#refreshVisuals();
-
-    if (this.currentDurability <= 0) {
-      this.broken = true;
-    }
+    block.currentDurability = Math.max(0, block.currentDurability - 1);
+    block.broken = block.currentDurability <= 0;
+    this.#refreshBlockVisual(block);
 
     return true;
   }
 
+  getDurabilities() {
+    return this.blocks.map((block) => block.currentDurability);
+  }
+
+  get maxDurability() {
+    return this.blockMaxDurability;
+  }
+
   destroy() {
     for (const block of this.blocks) {
-      block.destroy();
+      block.sprite.destroy();
     }
 
     this.blocks = [];
   }
 
   #refreshVisuals() {
-    const state = this.#visualState();
-    const textureKey = TEXTURE_BY_STATE[state];
-
     for (const block of this.blocks) {
-      if (block.texture.key !== textureKey) {
-        block.setTexture(textureKey);
-      }
+      this.#refreshBlockVisual(block);
     }
   }
 
-  #visualState() {
-    if (this.currentDurability <= 0) {
+  #refreshBlockVisual(block) {
+    const state = this.#visualState(block);
+    const frame = FRAME_BY_STATE[state];
+
+    if (block.sprite.frame.name !== frame) {
+      block.sprite.setFrame(frame);
+    }
+  }
+
+  #visualState(block) {
+    if (block.currentDurability <= 0) {
       return 'broken';
     }
 
-    if (this.currentDurability >= this.maxDurability) {
+    if (block.currentDurability >= this.blockMaxDurability) {
       return 'intact';
     }
 

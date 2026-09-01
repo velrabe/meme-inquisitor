@@ -117,9 +117,8 @@ export class GameSession {
 
   notifyBarrierHit() {
     this.events.emit('barrierHit', {
-      durability: this.barrier.currentDurability,
+      durabilities: this.barrier.getDurabilities(),
       maxDurability: this.barrier.maxDurability,
-      broken: this.barrier.broken,
     });
   }
 
@@ -133,7 +132,7 @@ export class GameSession {
       elapsedTime: this.elapsedTime,
       score: this.score,
       kills: this.kills,
-      barrierDurability: this.barrier.currentDurability,
+      barrierDurabilities: this.barrier.getDurabilities(),
       barrierMax: this.barrier.maxDurability,
       status: this.status,
     };
